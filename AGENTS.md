@@ -20,6 +20,8 @@ When adding a new technical decision that is hard to reverse, surprising without
 
 Agent generates all content (questions, scoring, feedback). Tools handle only: display → collect → store. Tools never call LLMs.
 
+Choice-question correctness may be checked mechanically by tools using the Agent-provided correct answer. Fill-question and writing-scoring judgment remains Agent-generated.
+
 When adding a feature that requires LLM interaction, put the intelligence in the agent's system prompt, not in the tool implementation.
 
 ### Architecture Boundaries
@@ -51,7 +53,7 @@ fitword/
 │   ├── prd/
 │   │   ├── overview.md                # Background, target users, scope, success criteria
 │   │   ├── practice-model.md          # Choice + fill formats, 5 knowledge types, feedback rules
-│   │   └── scoring-model.md           # 5-dimension writing scoring via chatbot tool
+│   │   └── scoring-model.md           # 5-dimension writing scoring practice
 │   └── adr/
 │       ├── 0001-sqlite-storage.md     # SQLite vs JSON decision
 │       ├── 0002-local-web-ui.md       # Web UI vs CLI decision
