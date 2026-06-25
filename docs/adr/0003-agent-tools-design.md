@@ -172,14 +172,14 @@ Agent 查询用户练习数据，用于 Agent Memory。
 ```json
 {
   "weak_types": [
-    { "knowledge_type": "adjective", "total": 10, "usable": 7, "good": 4, "usable_rate": 70.0, "good_rate": 40.0 }
+    { "knowledge_type": "adjective", "total": 10, "usable": 7, "good": 4, "needs_work": 6, "usable_rate": 70.0, "good_rate": 40.0, "needs_work_rate": 60.0 }
   ],
-  "overall": { "total_questions": 35, "usable_rate": 82.9, "good_rate": 62.9 },
+  "overall": { "total_questions": 35, "usable_rate": 82.9, "good_rate": 62.9, "needs_work_rate": 37.1 },
   "writing_summary": { "total_records": 4, "average_total_score": 3.5 }
 }
 ```
 
-Agent 在对话中自然引用，不做数据面板展示。
+Agent 在对话中自然引用，不主动输出完整统计面板。完整统计由 UI 的统计页只读展示。
 
 ---
 

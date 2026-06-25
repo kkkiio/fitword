@@ -65,8 +65,10 @@ SELECT q.knowledge_type,
        COUNT(*) AS total,
        SUM(CASE WHEN a.quality >= 1 THEN 1 ELSE 0 END) AS usable,
        SUM(CASE WHEN a.quality = 2 THEN 1 ELSE 0 END) AS good,
+       SUM(CASE WHEN a.quality < 2 THEN 1 ELSE 0 END) AS needs_work,
        ROUND(SUM(CASE WHEN a.quality >= 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS usable_rate,
-       ROUND(SUM(CASE WHEN a.quality = 2 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS good_rate
+       ROUND(SUM(CASE WHEN a.quality = 2 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS good_rate,
+       ROUND(SUM(CASE WHEN a.quality < 2 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS needs_work_rate
 FROM answers a JOIN questions q ON a.question_id = q.id
 GROUP BY q.knowledge_type ORDER BY good_rate ASC, usable_rate ASC;
 ```
@@ -78,8 +80,10 @@ SELECT q.format,
        COUNT(*) AS total,
        SUM(CASE WHEN a.quality >= 1 THEN 1 ELSE 0 END) AS usable,
        SUM(CASE WHEN a.quality = 2 THEN 1 ELSE 0 END) AS good,
+       SUM(CASE WHEN a.quality < 2 THEN 1 ELSE 0 END) AS needs_work,
        ROUND(SUM(CASE WHEN a.quality >= 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS usable_rate,
-       ROUND(SUM(CASE WHEN a.quality = 2 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS good_rate
+       ROUND(SUM(CASE WHEN a.quality = 2 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS good_rate,
+       ROUND(SUM(CASE WHEN a.quality < 2 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS needs_work_rate
 FROM answers a JOIN questions q ON a.question_id = q.id
 GROUP BY q.format;
 ```
@@ -90,8 +94,10 @@ GROUP BY q.format;
 SELECT COUNT(*) AS total_questions,
        SUM(CASE WHEN quality >= 1 THEN 1 ELSE 0 END) AS usable,
        SUM(CASE WHEN quality = 2 THEN 1 ELSE 0 END) AS good,
+       SUM(CASE WHEN quality < 2 THEN 1 ELSE 0 END) AS needs_work,
        ROUND(SUM(CASE WHEN quality >= 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS usable_rate,
-       ROUND(SUM(CASE WHEN quality = 2 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS good_rate
+       ROUND(SUM(CASE WHEN quality = 2 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS good_rate,
+       ROUND(SUM(CASE WHEN quality < 2 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS needs_work_rate
 FROM answers;
 ```
 
@@ -127,4 +133,4 @@ FROM scoring_records;
 - questions 只保存已完成作答的题目；questions 和 answers 的写入由 `record_answer` 工具在同一事务中完成
 - answers 使用三档 `quality` 记录答题质量，选择题只写入 `0` 或 `2`，填空题可写入 `0`、`1`、`2`
 - scoring_records 的写入由 `evaluate_writing` 工具完成
-- `get_practice_stats` 工具从上述查询中获取 Agent Memory 数据
+- `get_practice_stats` 工具从上述查询中获取 Agent Memory 数据，其中待打磨率表示未达到好答案的比例
