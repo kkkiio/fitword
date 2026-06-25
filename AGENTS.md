@@ -20,7 +20,9 @@ When adding a new technical decision that is hard to reverse, surprising without
 
 Agent generates all content (questions, scoring, feedback). Tools handle only: display → collect → store. Tools never call LLMs.
 
-Choice-question correctness may be checked mechanically by tools using the Agent-provided correct answer. Fill-question and writing-scoring judgment remains Agent-generated.
+Choice-question acceptance may be checked mechanically by tools using the Agent-provided correct answer. Fill-question and writing-scoring judgment remains Agent-generated.
+
+Answer records use binary `acceptance`: `1` means acceptable/pass, `0` means unacceptable/fail. For v0.1, a fill answer that is usable but not good enough may be recorded as `0` to keep the model simple.
 
 When adding a feature that requires LLM interaction, put the intelligence in the agent's system prompt, not in the tool implementation.
 
