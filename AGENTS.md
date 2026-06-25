@@ -20,9 +20,9 @@ When adding a new technical decision that is hard to reverse, surprising without
 
 Agent generates all content (questions, scoring, feedback). Tools handle only: display → collect → store. Tools never call LLMs.
 
-Choice-question acceptance may be checked mechanically by tools using the Agent-provided correct answer. Fill-question and writing-scoring judgment remains Agent-generated.
+Choice-question quality may be checked mechanically by tools using the Agent-provided correct answer. Fill-question quality and writing-scoring judgment remain Agent-generated.
 
-Answer records use binary `acceptance`: `1` means acceptable/pass, `0` means unacceptable/fail. For v0.1, a fill answer that is usable but not good enough may be recorded as `0` to keep the model simple.
+Answer records use three-level `quality`: `0` means unusable/fail, `1` means usable but not ideal, `2` means good. Choice questions only produce `0` or `2`; fill questions may produce all three levels.
 
 When adding a feature that requires LLM interaction, put the intelligence in the agent's system prompt, not in the tool implementation.
 
@@ -61,7 +61,8 @@ fitword/
 │       ├── 0002-local-web-ui.md       # Web UI vs CLI decision
 │       ├── 0003-agent-tools-design.md # Tool definitions (ask_question, record_answer, evaluate_writing, get_practice_stats)
 │       ├── 0004-pi-sdk-agent-framework.md  # pi SDK vs alternatives
-│       └── 0005-sqlite-schema.md      # Table definitions and queries
+│       ├── 0005-sqlite-schema.md      # Table definitions and queries
+│       └── 0006-system-prompt.md      # Agent prompt behavior rules
 └── src/                               # Runtime code (TBD)
 ```
 
