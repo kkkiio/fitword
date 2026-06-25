@@ -1,5 +1,9 @@
 node_modules/
 dist/
+.features-gen/
+.tmp/
+playwright-report/
+test-results/
 .env
 *.log
 .DS_Store

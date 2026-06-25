@@ -1,6 +1,8 @@
+import { I18nProvider } from '@lingui/react';
+import { Trans, useLingui } from '@lingui/react/macro';
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BarChart3, MessageSquareText, Send, Sparkles } from 'lucide-react';
+import { BarChart3, Languages, MessageSquareText, Send, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,25 +16,26 @@ import { PromptInput, PromptInputSubmit, PromptInputTextarea, PromptInputToolbar
 import { Response } from '@/components/ai-elements/response';
 import { Tool } from '@/components/ai-elements/tool';
 import type { ChatMessage, QuestionCard, ScoreCard } from '../shared/types.js';
+import { activateLocale, defaultLocale, i18n, supportedLocales, type SupportedLocale } from './i18n';
 import './style.css';
 
-const knowledgeLabels: Record<string, string> = {
-  noun: '名词',
-  verb: '动词',
-  adjective: '形容词',
-  logic: '逻辑词',
-  domain: '领域词',
-};
-
 function QuestionCardView({ card, onAnswer }: { card: QuestionCard; onAnswer: (answer: string) => void }) {
+  const { t } = useLingui();
   const [answer, setAnswer] = useState('');
   const questionParts = card.question.split('____');
+  const knowledgeLabels: Record<string, string> = {
+    noun: t`名词`,
+    verb: t`动词`,
+    adjective: t`形容词`,
+    logic: t`逻辑词`,
+    domain: t`领域词`,
+  };
 
   return (
     <Tool className="border-primary/30 bg-primary/5">
       <CardHeader className="gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge>{card.format === 'choice' ? '选择题' : '填空题'}</Badge>
+          <Badge>{card.format === 'choice' ? t`选择题` : t`填空题`}</Badge>
           <Badge variant="secondary">{knowledgeLabels[card.knowledge_type]}</Badge>
           {card.topic_tag ? <Badge variant="outline">{card.topic_tag}</Badge> : null}
         </div>
@@ -41,7 +44,9 @@ function QuestionCardView({ card, onAnswer }: { card: QuestionCard; onAnswer: (a
           <span className="mx-1 rounded-md bg-background px-3 py-1 text-primary ring-1 ring-primary/20">____</span>
           {questionParts[1]}
         </CardTitle>
-        <CardDescription>答完后我会给出语境适配度和表达差异。</CardDescription>
+        <CardDescription>
+          <Trans>答完后我会给出语境适配度和表达差异。</Trans>
+        </CardDescription>
       </CardHeader>
       <CardContent>
         {card.format === 'choice' ? (
@@ -61,8 +66,10 @@ function QuestionCardView({ card, onAnswer }: { card: QuestionCard; onAnswer: (a
               if (answer.trim()) onAnswer(answer.trim());
             }}
           >
-            <Input value={answer} onChange={(event) => setAnswer(event.target.value)} placeholder="输入你觉得最贴切的词" />
-            <Button type="submit">确认答案</Button>
+            <Input value={answer} onChange={(event) => setAnswer(event.target.value)} placeholder={t`输入你觉得最贴切的词`} />
+            <Button type="submit">
+              <Trans>确认答案</Trans>
+            </Button>
           </form>
         )}
       </CardContent>
@@ -71,12 +78,13 @@ function QuestionCardView({ card, onAnswer }: { card: QuestionCard; onAnswer: (a
 }
 
 function ScoreCardView({ card }: { card: ScoreCard }) {
+  const { t } = useLingui();
   const dimensions = [
-    ['准确度', card.dimensions.accuracy],
-    ['具体度', card.dimensions.specificity],
-    ['自然度', card.dimensions.naturalness],
-    ['结构', card.dimensions.structure],
-    ['语域', card.dimensions.register],
+    [t`准确度`, card.dimensions.accuracy],
+    [t`具体度`, card.dimensions.specificity],
+    [t`自然度`, card.dimensions.naturalness],
+    [t`结构`, card.dimensions.structure],
+    [t`语域`, card.dimensions.register],
   ] as const;
 
   return (
@@ -85,9 +93,11 @@ function ScoreCardView({ card }: { card: ScoreCard }) {
         <div className="flex items-center justify-between gap-4">
           <div>
             <CardTitle className="flex items-center gap-2 text-xl">
-              <Sparkles className="size-5 text-amber-600" /> 写作评分
+              <Sparkles className="size-5 text-amber-600" /> <Trans>写作评分</Trans>
             </CardTitle>
-            <CardDescription>分数是参考，重点看可操作的替换和改写。</CardDescription>
+            <CardDescription>
+              <Trans>分数是参考，重点看可操作的替换和改写。</Trans>
+            </CardDescription>
           </div>
           <div className="rounded-full bg-amber-100 px-4 py-2 text-2xl font-bold text-amber-900">{card.total_score}/5</div>
         </div>
@@ -140,13 +150,14 @@ function ChatMessageView({ message, onAnswer }: { message: ChatMessage; onAnswer
 }
 
 function StatsPanel() {
+  const { t } = useLingui();
   const [stats, setStats] = useState<any>();
 
   useEffect(() => {
     fetch('/api/stats').then((response) => response.json()).then(setStats);
   }, []);
 
-  if (!stats) return <main className="grid flex-1 place-items-center text-muted-foreground">加载统计中…</main>;
+  if (!stats) return <main className="grid flex-1 place-items-center text-muted-foreground"><Trans>加载统计中…</Trans></main>;
 
   const rows = [...stats.weak_types];
   const weakest = rows[0]?.knowledge_type;
@@ -155,15 +166,15 @@ function StatsPanel() {
     <main className="flex-1 overflow-auto p-6">
       <div className="mx-auto max-w-5xl space-y-6">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight">练习统计</h2>
-          <p className="text-muted-foreground">只读展示本地 SQLite 中的练习质量分布。</p>
+          <h2 className="text-2xl font-semibold tracking-tight"><Trans>练习统计</Trans></h2>
+          <p className="text-muted-foreground"><Trans>只读展示本地 SQLite 中的练习质量分布。</Trans></p>
         </div>
         <div className="grid gap-4 md:grid-cols-4">
           {[
-            ['总题数', stats.overall.total],
-            ['可用率', `${stats.overall.usable_rate}%`],
-            ['优质率', `${stats.overall.good_rate}%`],
-            ['待打磨率', `${stats.overall.needs_work_rate}%`],
+            [t`总题数`, stats.overall.total],
+            [t`可用率`, `${stats.overall.usable_rate}%`],
+            [t`优质率`, `${stats.overall.good_rate}%`],
+            [t`待打磨率`, `${stats.overall.needs_work_rate}%`],
           ].map(([label, value]) => (
             <Card key={label}>
               <CardHeader>
@@ -173,14 +184,14 @@ function StatsPanel() {
             </Card>
           ))}
         </div>
-        <StatsRows title="薄弱类型分布" rows={rows} nameKey="knowledge_type" highlight={weakest} />
-        <StatsRows title="选择题 vs 填空题" rows={stats.format_comparison} nameKey="format" />
+        <StatsRows title={t`薄弱类型分布`} rows={rows} nameKey="knowledge_type" highlight={weakest} />
+        <StatsRows title={t`选择题 vs 填空题`} rows={stats.format_comparison} nameKey="format" />
         <Card>
           <CardHeader>
-            <CardTitle>写作评分</CardTitle>
-            <CardDescription>总记录 {stats.writing_summary.total_records} 次</CardDescription>
+            <CardTitle><Trans>写作评分</Trans></CardTitle>
+            <CardDescription><Trans>总记录 {stats.writing_summary.total_records} 次</Trans></CardDescription>
           </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">平均总分：{stats.writing_summary.average_total_score ?? 0}</CardContent>
+          <CardContent className="text-sm text-muted-foreground"><Trans>平均总分：{stats.writing_summary.average_total_score ?? 0}</Trans></CardContent>
         </Card>
       </div>
     </main>
@@ -188,23 +199,34 @@ function StatsPanel() {
 }
 
 function StatsRows({ title, rows, nameKey, highlight }: { title: string; rows: any[]; nameKey: string; highlight?: string }) {
+  const { t } = useLingui();
+  const labels: Record<string, string> = {
+    noun: t`名词`,
+    verb: t`动词`,
+    adjective: t`形容词`,
+    logic: t`逻辑词`,
+    domain: t`领域词`,
+    choice: t`选择题`,
+    fill: t`填空题`,
+  };
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>{title}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {rows.length === 0 ? <p className="text-sm text-muted-foreground">暂无数据，完成练习后会显示。</p> : null}
+        {rows.length === 0 ? <p className="text-sm text-muted-foreground"><Trans>暂无数据，完成练习后会显示。</Trans></p> : null}
         {rows.map((row) => (
           <div key={row[nameKey]} className="rounded-lg border p-4">
             <div className="mb-3 flex items-center justify-between">
-              <div className="font-medium">{knowledgeLabels[row[nameKey]] ?? (row[nameKey] === 'choice' ? '选择题' : '填空题')}</div>
-              {highlight === row[nameKey] ? <Badge variant="destructive">优先打磨</Badge> : null}
+              <div className="font-medium">{labels[row[nameKey]] ?? row[nameKey]}</div>
+              {highlight === row[nameKey] ? <Badge variant="destructive"><Trans>优先打磨</Trans></Badge> : null}
             </div>
             <div className="grid gap-3 text-sm md:grid-cols-3">
-              <Metric label="可用率" value={row.usable_rate} />
-              <Metric label="优质率" value={row.good_rate} />
-              <Metric label="待打磨率" value={row.needs_work_rate} />
+              <Metric label={t`可用率`} value={row.usable_rate} />
+              <Metric label={t`优质率`} value={row.good_rate} />
+              <Metric label={t`待打磨率`} value={row.needs_work_rate} />
             </div>
           </div>
         ))}
@@ -224,7 +246,6 @@ function Metric({ label, value }: { label: string; value: number }) {
     </div>
   );
 }
-
 
 async function streamChatEvents({
   message,
@@ -261,19 +282,31 @@ async function streamChatEvents({
 }
 
 function App() {
+  const { t } = useLingui();
+  const welcomeText = t`你好，我是 fitword（词感）。说一个想练的话题，或点击“提交评分”粘贴一段文字。`;
+  const [locale, setLocale] = useState<SupportedLocale>(() => (supportedLocales.includes(i18n.locale as SupportedLocale) ? (i18n.locale as SupportedLocale) : defaultLocale));
   const [tab, setTab] = useState('chat');
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome',
       role: 'agent',
       created_at: new Date().toISOString(),
-      parts: [{ kind: 'text', text: '你好，我是 fitword（词感）。说一个想练的话题，或点击“提交评分”粘贴一段文字。' }],
+      parts: [{ kind: 'text', text: welcomeText }],
     },
   ]);
   const [input, setInput] = useState('');
   const [scoreMode, setScoreMode] = useState(false);
 
-  const placeholder = useMemo(() => (scoreMode ? '粘贴需要评分的文字…' : '输入你的消息…'), [scoreMode]);
+  const placeholder = useMemo(() => (scoreMode ? t`粘贴需要评分的文字…` : t`输入你的消息…`), [scoreMode, t]);
+
+  useEffect(() => {
+    activateLocale(locale);
+    window.localStorage.setItem('fitword.locale', locale);
+  }, [locale]);
+
+  useEffect(() => {
+    setMessages((current) => current.map((message) => (message.id === 'welcome' ? { ...message, parts: [{ kind: 'text', text: welcomeText }] } : message)));
+  }, [welcomeText]);
 
   async function send(message = input) {
     if (!message.trim()) return;
@@ -328,7 +361,7 @@ function App() {
           appendAssistantPart({ kind: 'text', text: String(data.message ?? '') });
         }
         if (event === 'error') {
-          appendAssistantPart({ kind: 'text', text: `出错了：${String(data.message ?? '未知错误')}` });
+          appendAssistantPart({ kind: 'text', text: t`出错了：${String(data.message ?? '未知错误')}` });
         }
       },
     });
@@ -339,16 +372,25 @@ function App() {
       <aside className="flex w-64 shrink-0 flex-col border-r bg-background p-4">
         <div className="mb-6 rounded-xl bg-primary p-4 text-primary-foreground">
           <h1 className="text-2xl font-semibold">fitword</h1>
-          <p className="text-sm opacity-80">词感 · 表达练习</p>
+          <p className="text-sm opacity-80"><Trans>词感 · 表达练习</Trans></p>
         </div>
         <TabsList className="grid h-auto w-full grid-cols-1 bg-transparent p-0">
           <TabsTrigger value="chat" className="justify-start gap-2">
-            <MessageSquareText className="size-4" /> 对话
+            <MessageSquareText className="size-4" /> <Trans>对话</Trans>
           </TabsTrigger>
           <TabsTrigger value="stats" className="justify-start gap-2">
-            <BarChart3 className="size-4" /> 统计
+            <BarChart3 className="size-4" /> <Trans>统计</Trans>
           </TabsTrigger>
         </TabsList>
+        <div className="mt-auto flex items-center gap-2 border-t pt-4">
+          <Languages className="size-4 text-muted-foreground" aria-hidden="true" />
+          <Button type="button" variant={locale === 'zh-CN' ? 'secondary' : 'ghost'} size="sm" aria-pressed={locale === 'zh-CN'} title={t`切换到中文`} onClick={() => setLocale('zh-CN')}>
+            中
+          </Button>
+          <Button type="button" variant={locale === 'en' ? 'secondary' : 'ghost'} size="sm" aria-pressed={locale === 'en'} title={t`切换到英文`} onClick={() => setLocale('en')}>
+            EN
+          </Button>
+        </div>
       </aside>
       <TabsContent value="chat" className="flex min-w-0 flex-1 flex-col">
         <Conversation>
@@ -364,12 +406,12 @@ function App() {
         >
           <PromptInputToolbar>
             <Button type="button" variant={scoreMode ? 'secondary' : 'outline'} onClick={() => setScoreMode((current) => !current)}>
-              {scoreMode ? '取消评分' : '提交评分'}
+              {scoreMode ? t`取消评分` : t`提交评分`}
             </Button>
           </PromptInputToolbar>
           <PromptInputTextarea rows={scoreMode ? 4 : 1} value={input} onChange={(event) => setInput(event.target.value)} placeholder={placeholder} />
           <PromptInputSubmit>
-            <Send className="size-4" /> {scoreMode ? '提交评分' : '发送'}
+            <Send className="size-4" /> {scoreMode ? t`提交评分` : t`发送`}
           </PromptInputSubmit>
         </PromptInput>
       </TabsContent>
@@ -380,4 +422,13 @@ function App() {
   );
 }
 
-createRoot(document.getElementById('root')!).render(<App />);
+const savedLocale = window.localStorage.getItem('fitword.locale') as SupportedLocale | null;
+activateLocale(savedLocale && supportedLocales.includes(savedLocale) ? savedLocale : defaultLocale);
+
+createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <I18nProvider i18n={i18n}>
+      <App />
+    </I18nProvider>
+  </React.StrictMode>,
+);

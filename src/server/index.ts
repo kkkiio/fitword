@@ -4,7 +4,6 @@ import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
 import { getStats } from './db.js';
 import { createSseStream } from './sse.js';
-import { streamChat } from './pi-agent.js';
 
 const app = new Hono();
 
@@ -14,6 +13,7 @@ app.post('/api/chat/stream', async (context) => {
   const body = await context.req.json().catch(() => ({}));
   const message = String(body.message ?? '');
   const intent = body.intent === 'score' ? 'score' : undefined;
+  const { streamChat } = await import('./pi-agent.js');
   return new Response(createSseStream((emit) => streamChat(message, intent, emit)), {
     headers: {
       'content-type': 'text/event-stream; charset=utf-8',

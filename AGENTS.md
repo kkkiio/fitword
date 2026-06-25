@@ -62,8 +62,16 @@ fitword/
 │       ├── 0003-agent-tools-design.md # Tool definitions (ask_question, record_answer, evaluate_writing, get_practice_stats)
 │       ├── 0004-pi-sdk-agent-framework.md  # pi SDK vs alternatives
 │       ├── 0005-sqlite-schema.md      # Table definitions and queries
-│       └── 0006-system-prompt.md      # Agent prompt behavior rules
-└── src/                               # Runtime code (TBD)
+│       ├── 0006-system-prompt.md      # Agent prompt behavior rules
+│       ├── 0007-ui-layout.md          # Web UI layout decision
+│       └── 0008-i18n-and-bdd-e2e.md   # Lingui UI i18n + playwright-bdd e2e
+├── e2e/                               # playwright-bdd features, steps, fixtures, page objects
+├── src/
+│   ├── client/                        # React UI and Lingui setup
+│   ├── locales/                       # Lingui message catalogs
+│   └── server/                        # Hono server, storage, pi SDK agent tools
+├── lingui.config.ts                   # Lingui catalog config
+└── playwright.config.ts               # playwright-bdd test config
 ```
 
 ### Architecture
@@ -86,7 +94,7 @@ Web UI (React) ↔ Server (local) ↔ pi SDK Agent ↔ LLM API
 
 ### Prerequisites
 
-- Node.js >= 18
+- Node.js >= 20.6
 - npm
 
 ### Install
@@ -98,14 +106,16 @@ npm install
 ### Run
 
 ```bash
-# TBD - development server
 npm run dev
 ```
 
 ### Validate
 
 ```bash
-# TBD
 npm run typecheck
 npm run test
+npm run test:e2e
+npm run i18n:extract
 ```
+
+`npm run test:e2e` includes an online writing-scoring BDD scenario backed by the configured model service. It is enabled only when `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `OPENAI_MODEL` are present in `.env` or the environment; otherwise it skips.

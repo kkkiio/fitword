@@ -295,6 +295,11 @@ export async function streamChat(message: string, intent: 'score' | undefined, e
 
   currentEmit = emit;
   try {
+    if (process.env.FITWORD_FORCE_DEMO === '1') {
+      await streamFallback(message, intent, emit, 'FITWORD_FORCE_DEMO=1');
+      return;
+    }
+
     const session = await getPiSession();
     const prompt = intent === 'score' ? `用户点击了“提交评分”，请评分并调用 evaluate_writing 工具保存：\n${message}` : message;
     await session.prompt(prompt, { source: 'user' } as any);
