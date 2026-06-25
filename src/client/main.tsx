@@ -225,6 +225,41 @@ function Metric({ label, value }: { label: string; value: number }) {
   );
 }
 
+
+async function streamChatEvents({
+  message,
+  intent,
+  onEvent,
+}: {
+  message: string;
+  intent?: 'score';
+  onEvent: (event: string, data: Record<string, unknown>) => void;
+}) {
+  const response = await fetch('/api/chat/stream', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ message, intent }),
+  });
+  if (!response.body) throw new Error('当前浏览器不支持流式响应');
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const chunks = buffer.split('\n\n');
+    buffer = chunks.pop() ?? '';
+    for (const chunk of chunks) {
+      const event = chunk.match(/^event: (.+)$/m)?.[1];
+      const data = chunk.match(/^data: (.+)$/m)?.[1];
+      if (event && data) onEvent(event, JSON.parse(data));
+    }
+  }
+}
+
 function App() {
   const [tab, setTab] = useState('chat');
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -242,14 +277,61 @@ function App() {
 
   async function send(message = input) {
     if (!message.trim()) return;
+    const outgoingIntent = scoreMode ? 'score' : undefined;
     setInput('');
-    const response = await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ message, intent: scoreMode ? 'score' : undefined }),
-    }).then((item) => item.json());
-    setMessages((current) => [...current, ...response.messages]);
     setScoreMode(false);
+
+    const assistantId = `agent-${Date.now()}`;
+    let assistantStarted = false;
+
+    const appendAssistantPart = (part: ChatMessage['parts'][number]) => {
+      setMessages((current) => {
+        const existing = current.find((item) => item.id === assistantId);
+        if (!existing) {
+          assistantStarted = true;
+          return [...current, { id: assistantId, role: 'agent', created_at: new Date().toISOString(), parts: [part] }];
+        }
+        return current.map((item) => (item.id === assistantId ? { ...item, parts: [...item.parts, part] } : item));
+      });
+    };
+
+    await streamChatEvents({
+      message,
+      intent: outgoingIntent,
+      onEvent(event, data) {
+        if (event === 'message') {
+          setMessages((current) => [...current, data.message as ChatMessage]);
+        }
+        if (event === 'delta') {
+          const text = String(data.text ?? '');
+          setMessages((current) => {
+            const existing = current.find((item) => item.id === assistantId);
+            if (!existing) {
+              assistantStarted = true;
+              return [...current, { id: assistantId, role: 'agent', created_at: new Date().toISOString(), parts: [{ kind: 'text', text }] }];
+            }
+            return current.map((item) => {
+              if (item.id !== assistantId) return item;
+              const last = item.parts[item.parts.length - 1];
+              if (last?.kind === 'text') {
+                return { ...item, parts: [...item.parts.slice(0, -1), { ...last, text: `${last.text}${text}` }] };
+              }
+              return { ...item, parts: [...item.parts, { kind: 'text', text }] };
+            });
+          });
+        }
+        if (event === 'tool') {
+          if (data.kind === 'question') appendAssistantPart({ kind: 'question', card: data.card as QuestionCard });
+          if (data.kind === 'score') appendAssistantPart({ kind: 'score', card: data.card as ScoreCard });
+        }
+        if (event === 'warning' && !assistantStarted) {
+          appendAssistantPart({ kind: 'text', text: String(data.message ?? '') });
+        }
+        if (event === 'error') {
+          appendAssistantPart({ kind: 'text', text: `出错了：${String(data.message ?? '未知错误')}` });
+        }
+      },
+    });
   }
 
   return (
