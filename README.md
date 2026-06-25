@@ -13,7 +13,7 @@ fitword 是一个本地运行的中文表达练习工具，通过选择题、填
 
 ## 安装
 
-要求：Node.js >= 18、npm。
+要求：Node.js >= 20.6、npm。
 
 ```bash
 npm install
@@ -21,11 +21,21 @@ npm install
 
 ## 开发运行
 
+本地开发可以在项目根目录创建 `.env`：
+
+```bash
+OPENAI_API_KEY=sk-...
+OPENAI_BASE_URL=https://api.deepseek.com
+OPENAI_MODEL=deepseek-v4-flash
+```
+
+Fitword 会把这三个变量作为统一的 OpenAI-compatible LLM 配置传给 Pi SDK。`OPENAI_BASE_URL` 可指向 DeepSeek 等兼容 OpenAI Chat Completions 的服务。
+
 ```bash
 npm run dev
 ```
 
-启动后访问终端输出的 localhost 地址（默认 `http://localhost:5174`）。后端使用 Pi SDK Agent 会话；如本地尚未配置模型 API key，会在开发环境中返回本地演示流，便于验证 UI 与存储链路。
+启动后访问终端输出的 localhost 地址（默认 `http://localhost:5174`）。后端使用 Pi SDK Agent 会话；如本地尚未配置模型 API key，或 LLM 配置缺少必要变量，会在开发环境中返回本地演示流，便于验证 UI 与存储链路。
 
 ## 构建与校验
 

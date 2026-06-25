@@ -4,6 +4,7 @@ import { Type } from 'typebox';
 import {
   AuthStorage,
   createAgentSession,
+  type CreateAgentSessionOptions,
   DefaultResourceLoader,
   defineTool,
   ModelRegistry,
@@ -21,6 +22,7 @@ type PiSession = Awaited<ReturnType<typeof createAgentSession>>['session'];
 const now = () => new Date().toISOString();
 const id = () => Math.random().toString(36).slice(2);
 const fitwordDir = path.join(os.homedir(), '.fitword');
+const openAICompatibleProvider = 'fitword-openai-compatible';
 let piSessionPromise: Promise<PiSession> | undefined;
 let currentEmit: StreamEmit | undefined;
 let pendingQuestion: QuestionCard | undefined;
@@ -130,6 +132,56 @@ async function createFitwordPiSession() {
   const authStorage = AuthStorage.create(path.join(fitwordDir, 'auth.json'));
   const modelRegistry = ModelRegistry.create(authStorage, path.join(fitwordDir, 'models.json'));
   const settingsManager = SettingsManager.inMemory({ compaction: { enabled: false } });
+  const openAIApiKey = process.env.OPENAI_API_KEY?.trim();
+  const openAIBaseUrl = process.env.OPENAI_BASE_URL?.trim();
+  const openAIModel = process.env.OPENAI_MODEL?.trim();
+  let selectedModel: CreateAgentSessionOptions['model'];
+
+  if (openAIApiKey || openAIBaseUrl || openAIModel) {
+    if (!openAIApiKey || !openAIBaseUrl || !openAIModel) {
+      const missingConfig: string[] = [];
+      if (!openAIApiKey) missingConfig.push('OPENAI_API_KEY');
+      if (!openAIBaseUrl) missingConfig.push('OPENAI_BASE_URL');
+      if (!openAIModel) missingConfig.push('OPENAI_MODEL');
+      throw new Error(`LLM 配置缺少 ${missingConfig.join(', ')}；请同时配置 OPENAI_API_KEY、OPENAI_BASE_URL 和 OPENAI_MODEL。`);
+    }
+
+    const apiKey = openAIApiKey;
+    const baseUrl = openAIBaseUrl;
+    const modelId = openAIModel;
+    const normalizedBaseUrl = baseUrl.replace(/\/+$/, '');
+    const builtInModel = modelRegistry
+      .getAll()
+      .find((candidate) => candidate.id === modelId && candidate.baseUrl.replace(/\/+$/, '') === normalizedBaseUrl);
+
+    modelRegistry.registerProvider(openAICompatibleProvider, {
+      name: 'Fitword OpenAI Compatible',
+      baseUrl,
+      apiKey,
+      api: builtInModel?.api ?? 'openai-completions',
+      models: [
+        {
+          id: modelId,
+          name: builtInModel?.name ?? modelId,
+          api: builtInModel?.api ?? 'openai-completions',
+          baseUrl,
+          reasoning: builtInModel?.reasoning ?? false,
+          thinkingLevelMap: builtInModel?.thinkingLevelMap,
+          input: builtInModel?.input ?? (['text'] as Array<'text' | 'image'>),
+          cost: builtInModel?.cost ?? { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+          contextWindow: builtInModel?.contextWindow ?? 128000,
+          maxTokens: builtInModel?.maxTokens ?? 16384,
+          compat: builtInModel?.compat,
+        },
+      ],
+    });
+
+    selectedModel = modelRegistry.find(openAICompatibleProvider, modelId);
+    if (!selectedModel) {
+      throw new Error(`无法注册 LLM 模型 ${modelId}。`);
+    }
+  }
+
   const resourceLoader = new DefaultResourceLoader({
     cwd: fitwordDir,
     agentDir: fitwordDir,
@@ -144,6 +196,7 @@ async function createFitwordPiSession() {
     agentDir: fitwordDir,
     authStorage,
     modelRegistry,
+    model: selectedModel,
     resourceLoader,
     settingsManager,
     sessionManager: SessionManager.create(fitwordDir),
