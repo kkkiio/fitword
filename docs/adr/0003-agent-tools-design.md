@@ -1,0 +1,189 @@
+# ADR 0003: Agent 工具设计
+
+## 状态
+
+已采纳
+
+## 背景
+
+fitword 的练习交互采用 chatbot + 工具调用模式。Agent 负责生成题目内容和反馈，工具负责展示题目、收集用户输入、写入存储。需要定义每个工具的边界、参数、返回值和副作用。
+
+## 工具清单
+
+仅注册 fitword 自有工具。pi SDK 内置工具（read、bash、edit、write）禁用。
+
+| 工具 | 职责 |
+|---|---|
+| `ask_question` | 展示题目 + 收集用户答案 |
+| `record_answer` | 写入答题记录（含正确性判定） |
+| `evaluate_writing` | 展示写作评分卡片 |
+| `get_practice_stats` | 查询用户练习统计数据 |
+
+## 工具职责边界
+
+Agent 产出内容，工具只管：**展示 → 收集 → 存储**。工具不调 LLM，不做语义判断。
+
+写入存储统一由 `record_answer` 负责，`ask_question` 不写 DB。原因：
+- 填空题无法在收集答案时判定对错——Agent 需要在拿到用户输入后做语义判断
+- 选择题也统一走这个流程，工具内部做字符串比对，Agent 可覆盖
+
+---
+
+## ask_question — 出题工具
+
+Agent 生成题目后调用，向用户呈现选择题或填空题，收集答案后返回。
+
+### 参数
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `format` | `"choice"` \| `"fill"` | 是 | 题目格式 |
+| `question` | string | 是 | 题目文本，留空位置用 `____` 占位 |
+| `knowledge_type` | `"noun"` \| `"verb"` \| `"adjective"` \| `"logic"` \| `"domain"` | 是 | 知识类别 |
+| `topic_tag` | string | 否 | 话题标签 |
+
+**仅选择题额外参数：**
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `candidates` | string[] | 4 个候选词 |
+| `correct` | string | 正确答案 |
+
+### 行为
+
+1. UI 按 `____` 分割 `question` 渲染题目。选择题渲染 4 按钮，填空题渲染输入框。
+2. 等待用户作答。
+3. 不写存储。
+4. 收集完成后以 tool result 形式返回。
+
+### 返回值
+
+```json
+{ "user_answer": "告一段落" }
+```
+
+---
+
+## record_answer — 答题记录工具
+
+Agent 在获得用户答案并判定后调用，写入 SQLite。
+
+### 参数
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `format` | `"choice"` \| `"fill"` | 是 | 与 ask_question 一致 |
+| `question` | string | 是 | 题目全文 |
+| `knowledge_type` | string | 是 | 知识类别 |
+| `topic_tag` | string | 否 | 话题标签 |
+| `user_answer` | string | 是 | 用户答案 |
+| `is_correct` | `true` \| `false` | 是 | Agent 判定结果 |
+
+**仅选择题额外参数：**
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `candidates` | string[] | 候选词列表 |
+| `correct` | string | 正确答案 |
+
+### 行为
+
+写入 SQLite `questions` 和 `answers` 表。两道表写入在同一事务中。
+
+### 完整流程
+
+```
+选择题:
+  Agent → ask_question(question, candidates, correct) → 展示
+        → 用户选 → 返回 { user_answer }
+        → Agent 用 correct 做字符串比对 → record_answer(is_correct=true/false)
+        → Agent 给选项辨析
+
+填空题:
+  Agent → ask_question(question) → 展示
+        → 用户输入 → 返回 { user_answer }
+        → Agent 语义判断 → record_answer(is_correct=true/false)
+        → Agent 给评价反馈
+```
+
+---
+
+## evaluate_writing — 写作评分工具
+
+用户贴文字后，Agent 分析并调用此工具展示评分结果。
+
+### 参数
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `original_text` | string | 是 | 用户原始文字 |
+| `total_score` | number | 是 | 总分 1-5 |
+| `dimensions` | `{ accuracy, specificity, naturalness, structure, register }` | 是 | 各维度 1-5 |
+| `main_issues` | string | 是 | 主要问题描述 |
+| `suggestions` | `{ original, replacement, reason }[]` | 是 | 可替换词建议 2-3 条 |
+| `rewrite` | string | 是 | 改写版本全文 |
+
+### 行为
+
+1. UI 渲染评分卡片。
+2. 评分数据写入 SQLite（v0.1 可暂缓）。
+
+### 返回值
+
+无。单向展示。
+
+---
+
+## get_practice_stats — 统计查询工具
+
+Agent 查询用户练习数据，用于 Agent Memory。
+
+### 参数
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `query` | `"weak_types"` \| `"topic_distribution"` \| `"overall"` \| `"format_comparison"` | 查询类型 |
+
+### 行为
+
+从 SQLite 查询聚合数据，无副作用。
+
+### 返回值
+
+```json
+{
+  "weak_types": [
+    { "knowledge_type": "adjective", "total": 10, "correct": 4, "accuracy": 40.0 }
+  ],
+  "overall": { "total_questions": 35, "accuracy": 72.5 }
+}
+```
+
+Agent 在对话中自然引用，不做数据面板展示。
+
+---
+
+## `____` 占位符
+
+题目文本中使用 `____` 标记留空位置。UI 按 `____` 分割渲染。支持多个留空。
+
+```
+question: "项目开发已经____，下周进入测试。"
+UI:      项目开发已经 [ 输入组件 ] ，下周进入测试。
+```
+
+---
+
+## 备选方案
+
+| 方案 | 优点 | 缺点 |
+|---|---|---|
+| ask_question 同时写存储 | 少一个工具 | 填空题无法在收集时判定，被迫用 NULL 占位 |
+| 填空题传 expected/acceptable | 工具可做自动判定 | 限制 Agent 灵活判断 |
+| 每个题型独立工具 | 参数更精确 | 工具数量膨胀 |
+
+## 后果
+
+- 4 个工具，职责清晰单向：展示/收集、写入、展示卡片、查询
+- 填空题评判完全依赖 Agent 语义能力
+- `ask_question` 和 `record_answer` 分两阶段，中间有 Agent 判断窗口
