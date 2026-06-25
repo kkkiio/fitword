@@ -47,7 +47,6 @@ fitword/
 ├── CONTEXT.md                         # Domain glossary (pure terminology, no implementation)
 ├── README.md                          # User-facing project overview
 ├── AGENTS.md                          # This file
-├── prd.md                             # Original single-file PRD (kept for reference)
 ├── docs/
 │   ├── prd/
 │   │   ├── overview.md                # Background, target users, scope, success criteria

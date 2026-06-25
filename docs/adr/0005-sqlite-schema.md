@@ -74,7 +74,7 @@ GROUP BY topic_tag ORDER BY total DESC;
 
 - scoring_records：写作评分记录
 - conversation_sessions / messages：对话历史（暂由 pi SDK jsonl 管理）
-- 收藏词表：交互模式未定
+- 词语收藏夹：后续再定义交互和表结构
 
 ## 后果
 
