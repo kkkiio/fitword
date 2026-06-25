@@ -1,0 +1,3 @@
+import {serve} from '@hono/node-server';import {Hono} from 'hono';import {serveStatic} from '@hono/node-server/serve-static';import {sendMessage} from './agent.js';import {getStats} from './db.js';
+const app=new Hono();app.get('/api/health',c=>c.json({ok:true}));app.post('/api/chat',async c=>{const b=await c.req.json();return c.json({messages:sendMessage(String(b.message??''),b.intent)});});app.get('/api/stats',c=>c.json(getStats()));app.use('/*',serveStatic({root:'dist'}));
+const port=Number(process.env.PORT??5174);serve({fetch:app.fetch,port},()=>console.log(`fitword running at http://localhost:${port}`));
