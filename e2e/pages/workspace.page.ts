@@ -13,19 +13,17 @@ export class FitwordWorkspacePage {
 
   async open(): Promise<void> {
     await this.page.goto(this.app.baseUrl);
-    await expect(this.page.locator('aside').getByRole('heading', { name: 'fitword', exact: true })).toBeVisible();
+    await expect(this.page.getByRole('heading', { name: 'fitword', exact: true }).first()).toBeVisible();
     await expect(this.page.getByPlaceholder('输入你的消息…')).toBeVisible();
   }
 
   async expectChineseWorkspace(): Promise<void> {
     await expect(this.page.locator('html')).toHaveAttribute('lang', 'zh-CN');
-    await expect(this.page.getByText('词感 · 表达练习')).toBeVisible();
-    await expect(this.page.getByRole('button', { name: /对话/ })).toBeVisible();
+    await expect(this.page.getByText('词感 · 表达练习').first()).toBeVisible();
+    await expect(this.page.getByText('对话', { exact: true }).first()).toBeVisible();
     await expect(this.page.getByRole('button', { name: /统计/ })).toBeVisible();
-    await expect(this.page.getByText('你好，我是 fitword（词感）。')).toBeVisible();
+    await expect(this.page.getByRole('button', { name: /新建对话/ }).first()).toBeVisible();
     await expect(this.page.getByPlaceholder('输入你的消息…')).toBeVisible();
-    await expect(this.page.getByText('写作评分')).toBeVisible();
-    await expect(this.page.getByRole('button', { name: /发送/ })).toBeVisible();
   }
 
   async expectEmptyStats(): Promise<void> {
@@ -37,22 +35,22 @@ export class FitwordWorkspacePage {
   }
 
   async switchToEnglish(): Promise<void> {
-    await this.page.getByRole('button', { name: 'EN' }).click();
+    await this.page.getByRole('button', { name: '设置' }).click();
+    await this.page.getByRole('button', { name: 'English' }).click();
     await expect(this.page.locator('html')).toHaveAttribute('lang', 'en');
+    await this.page.keyboard.press('Escape');
+    await expect(this.page.getByRole('dialog', { name: '设置' })).toBeHidden();
   }
 
   async expectEnglishWorkspace(): Promise<void> {
-    await expect(this.page.getByText('Expression practice')).toBeVisible();
-    await expect(this.page.getByRole('button', { name: /Chat/ })).toBeVisible();
+    await expect(this.page.getByText('Expression practice').first()).toBeVisible();
+    await expect(this.page.getByText('Chat')).toBeVisible();
     await expect(this.page.getByRole('button', { name: /Stats/ })).toBeVisible();
-    await expect(this.page.getByText('Hi, I am fitword')).toBeVisible();
+    await expect(this.page.getByRole('button', { name: /New conversation/ }).first()).toBeVisible();
     await expect(this.page.getByPlaceholder('Enter your message...')).toBeVisible();
-    await expect(this.page.getByText('Writing score')).toBeVisible();
-    await expect(this.page.getByRole('button', { name: /Send/ })).toBeVisible();
   }
 
   async sendPracticeMessage(message: string): Promise<void> {
-    await this.page.getByRole('button', { name: /对话/ }).click();
     await this.page.getByPlaceholder('输入你的消息…').fill(message);
     await this.page.getByRole('button', { name: /发送/ }).click();
   }
@@ -72,17 +70,18 @@ export class FitwordWorkspacePage {
   }
 
   async submitWritingForScore(text: string): Promise<void> {
-    await this.page.getByRole('button', { name: /对话/ }).click();
-    await this.page.getByRole('switch').click();
-    await this.page.getByPlaceholder('粘贴需要评分的文字…').fill(text);
+    const scoreSwitch = this.page.getByRole('switch');
+    await scoreSwitch.click();
+    await expect(scoreSwitch).toBeChecked();
+    await this.page.locator('textarea[name="message"]').fill(text);
     await this.page.getByRole('button', { name: /发送/ }).click();
   }
 
   async expectWritingScore(): Promise<void> {
-    await expect(this.page.getByText('写作评分').first()).toBeVisible({ timeout: 90_000 });
-    await expect(this.page.getByText('准确度')).toBeVisible();
-    await expect(this.page.getByText('具体度')).toBeVisible();
-    await expect(this.page.getByText('自然度')).toBeVisible();
-    await expect(this.page.locator('blockquote')).toBeVisible();
+    await expect(this.page.getByText('准确度', { exact: true }).last()).toBeVisible({ timeout: 90_000 });
+    await expect(this.page.getByText('写作评分').first()).toBeVisible();
+    await expect(this.page.getByText('具体度', { exact: true }).last()).toBeVisible();
+    await expect(this.page.getByText('自然度', { exact: true }).last()).toBeVisible();
+    await expect(this.page.locator('blockquote.border-amber-500')).toBeVisible();
   }
 }

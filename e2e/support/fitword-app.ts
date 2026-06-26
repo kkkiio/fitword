@@ -65,6 +65,7 @@ export class FitwordE2eApp {
         ...process.env,
         NODE_ENV: 'test',
         PORT: String(port),
+        FITWORD_DATA_DIR: this.scenarioRoot,
         FITWORD_DB: this.dbPath,
         FITWORD_FORCE_DEMO: mode === 'demo' ? '1' : '0',
         ...(mode === 'demo' ? { OPENAI_API_KEY: '', OPENAI_BASE_URL: '', OPENAI_MODEL: '' } : {}),
