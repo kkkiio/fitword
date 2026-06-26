@@ -24,7 +24,7 @@ export class FitwordWorkspacePage {
     await expect(this.page.getByRole('button', { name: /统计/ })).toBeVisible();
     await expect(this.page.getByText('你好，我是 fitword（词感）。')).toBeVisible();
     await expect(this.page.getByPlaceholder('输入你的消息…')).toBeVisible();
-    await expect(this.page.getByRole('button', { name: /提交评分/ })).toBeVisible();
+    await expect(this.page.getByText('写作评分')).toBeVisible();
     await expect(this.page.getByRole('button', { name: /发送/ })).toBeVisible();
   }
 
@@ -47,7 +47,7 @@ export class FitwordWorkspacePage {
     await expect(this.page.getByRole('button', { name: /Stats/ })).toBeVisible();
     await expect(this.page.getByText('Hi, I am fitword')).toBeVisible();
     await expect(this.page.getByPlaceholder('Enter your message...')).toBeVisible();
-    await expect(this.page.getByRole('button', { name: /Score writing/ })).toBeVisible();
+    await expect(this.page.getByText('Writing score')).toBeVisible();
     await expect(this.page.getByRole('button', { name: /Send/ })).toBeVisible();
   }
 
@@ -73,9 +73,9 @@ export class FitwordWorkspacePage {
 
   async submitWritingForScore(text: string): Promise<void> {
     await this.page.getByRole('button', { name: /对话/ }).click();
-    await this.page.getByRole('button', { name: '提交评分', exact: true }).click();
+    await this.page.getByRole('switch').click();
     await this.page.getByPlaceholder('粘贴需要评分的文字…').fill(text);
-    await this.page.getByRole('button', { name: '提交评分', exact: true }).click();
+    await this.page.getByRole('button', { name: /发送/ }).click();
   }
 
   async expectWritingScore(): Promise<void> {

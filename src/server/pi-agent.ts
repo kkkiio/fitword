@@ -301,7 +301,7 @@ export async function streamChat(message: string, intent: 'score' | undefined, e
     }
 
     const session = await getPiSession();
-    const prompt = intent === 'score' ? `用户点击了“提交评分”，请评分并调用 evaluate_writing 工具保存：\n${message}` : message;
+    const prompt = intent === 'score' ? `用户请求写作评分，请评分并调用 evaluate_writing 工具保存：\n${message}` : message;
     await session.prompt(prompt, { source: 'user' } as any);
   } catch (error) {
     await streamFallback(message, intent, emit, error instanceof Error ? error.message : String(error));

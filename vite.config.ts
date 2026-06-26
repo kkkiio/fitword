@@ -4,7 +4,7 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
     react({
       babel: {
@@ -19,4 +19,12 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
-});
+  ...(mode === 'development' && {
+    server: {
+      port: 5174,
+      proxy: {
+        '/api': 'http://localhost:5175',
+      },
+    },
+  }),
+}));

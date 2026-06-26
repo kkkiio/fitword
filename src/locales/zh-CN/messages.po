@@ -13,185 +13,187 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
-#: src/client/main.tsx:224
+#: src/client/components/StatsPanel.tsx:38
 msgid "优先打磨"
 msgstr "优先打磨"
 
-#: src/client/main.tsx:176
-#: src/client/main.tsx:228
+#: src/client/components/StatsPanel.tsx:42
+#: src/client/components/StatsPanel.tsx:76
 msgid "优质率"
 msgstr "优质率"
 
-#: src/client/main.tsx:286
-msgid "你好，我是 fitword（词感）。说一个想练的话题，或点击“提交评分”粘贴一段文字。"
-msgstr "你好，我是 fitword（词感）。说一个想练的话题，或点击“提交评分”粘贴一段文字。"
+#: src/client/App.tsx:14
+msgid "你好，我是 fitword（词感）。说一个想练的话题，或打开写作评分开关粘贴一段文字。"
+msgstr "你好，我是 fitword（词感）。说一个想练的话题，或打开写作评分开关粘贴一段文字。"
 
-#: src/client/main.tsx:84
+#: src/client/main.tsx:286
+#~ msgid "你好，我是 fitword（词感）。说一个想练的话题，或点击“提交评分”粘贴一段文字。"
+#~ msgstr "你好，我是 fitword（词感）。说一个想练的话题，或点击“提交评分”粘贴一段文字。"
+
+#: src/client/components/ScoreCardView.tsx:13
 msgid "具体度"
 msgstr "具体度"
 
-#: src/client/main.tsx:96
-#: src/client/main.tsx:191
+#: src/client/components/ChatPanel.tsx:39
+#: src/client/components/ScoreCardView.tsx:25
+#: src/client/components/StatsPanel.tsx:91
 msgid "写作评分"
 msgstr "写作评分"
 
-#: src/client/main.tsx:83
+#: src/client/components/ScoreCardView.tsx:12
 msgid "准确度"
 msgstr "准确度"
 
 #. placeholder {0}: String(data.message ?? '未知错误')
-#: src/client/main.tsx:364
+#: src/client/App.tsx:90
 msgid "出错了：{0}"
 msgstr "出错了：{0}"
 
-#: src/client/main.tsx:99
+#: src/client/components/ScoreCardView.tsx:28
 msgid "分数是参考，重点看可操作的替换和改写。"
 msgstr "分数是参考，重点看可操作的替换和改写。"
 
-#: src/client/main.tsx:387
+#: src/client/components/Sidebar.tsx:63
 msgid "切换到中文"
 msgstr "切换到中文"
 
-#: src/client/main.tsx:390
+#: src/client/components/Sidebar.tsx:66
 msgid "切换到英文"
 msgstr "切换到英文"
 
-#: src/client/main.tsx:160
+#: src/client/components/StatsPanel.tsx:60
 msgid "加载统计中…"
 msgstr "加载统计中…"
 
-#: src/client/main.tsx:28
-#: src/client/main.tsx:205
+#: src/client/hooks/use-knowledge-labels.ts:7
 msgid "动词"
 msgstr "动词"
 
-#: src/client/main.tsx:414
+#: src/client/components/ChatPanel.tsx:50
 msgid "发送"
 msgstr "发送"
 
 #: src/client/main.tsx:409
-msgid "取消评分"
-msgstr "取消评分"
+#~ msgid "取消评分"
+#~ msgstr "取消评分"
 
-#: src/client/main.tsx:170
+#: src/client/components/StatsPanel.tsx:70
 msgid "只读展示本地 SQLite 中的练习质量分布。"
 msgstr "只读展示本地 SQLite 中的练习质量分布。"
 
-#: src/client/main.tsx:175
-#: src/client/main.tsx:227
+#: src/client/components/StatsPanel.tsx:41
+#: src/client/components/StatsPanel.tsx:75
 msgid "可用率"
 msgstr "可用率"
 
-#: src/client/main.tsx:27
-#: src/client/main.tsx:204
+#: src/client/hooks/use-knowledge-labels.ts:6
 msgid "名词"
 msgstr "名词"
 
-#: src/client/main.tsx:38
-#: src/client/main.tsx:210
+#: src/client/components/QuestionCardView.tsx:21
+#: src/client/hooks/use-knowledge-labels.ts:18
 msgid "填空题"
 msgstr "填空题"
 
-#: src/client/main.tsx:379
+#: src/client/components/Sidebar.tsx:42
+#: src/client/components/Sidebar.tsx:45
 msgid "对话"
 msgstr "对话"
 
 #. placeholder {0}: stats.writing_summary.average_total_score ?? 0
-#: src/client/main.tsx:194
+#: src/client/components/StatsPanel.tsx:94
 msgid "平均总分：{0}"
 msgstr "平均总分：{0}"
 
-#: src/client/main.tsx:29
-#: src/client/main.tsx:206
+#: src/client/hooks/use-knowledge-labels.ts:8
 msgid "形容词"
 msgstr "形容词"
 
-#: src/client/main.tsx:177
-#: src/client/main.tsx:229
+#: src/client/components/StatsPanel.tsx:43
+#: src/client/components/StatsPanel.tsx:77
 msgid "待打磨率"
 msgstr "待打磨率"
 
 #. placeholder {0}: stats.writing_summary.total_records
-#: src/client/main.tsx:192
+#: src/client/components/StatsPanel.tsx:92
 msgid "总记录 {0} 次"
 msgstr "总记录 {0} 次"
 
-#: src/client/main.tsx:174
+#: src/client/components/StatsPanel.tsx:74
 msgid "总题数"
 msgstr "总题数"
 
 #: src/client/main.tsx:409
 #: src/client/main.tsx:414
-msgid "提交评分"
-msgstr "提交评分"
+#~ msgid "提交评分"
+#~ msgstr "提交评分"
 
-#: src/client/main.tsx:219
+#: src/client/components/StatsPanel.tsx:33
 msgid "暂无数据，完成练习后会显示。"
 msgstr "暂无数据，完成练习后会显示。"
 
-#: src/client/main.tsx:71
+#: src/client/components/QuestionCardView.tsx:54
 msgid "确认答案"
 msgstr "确认答案"
 
-#: src/client/main.tsx:48
+#: src/client/components/QuestionCardView.tsx:31
 msgid "答完后我会给出语境适配度和表达差异。"
 msgstr "答完后我会给出语境适配度和表达差异。"
 
-#: src/client/main.tsx:300
+#: src/client/components/ChatPanel.tsx:27
 msgid "粘贴需要评分的文字…"
 msgstr "粘贴需要评分的文字…"
 
-#: src/client/main.tsx:169
+#: src/client/components/StatsPanel.tsx:69
 msgid "练习统计"
 msgstr "练习统计"
 
-#: src/client/main.tsx:86
+#: src/client/components/ScoreCardView.tsx:15
 msgid "结构"
 msgstr "结构"
 
-#: src/client/main.tsx:382
+#: src/client/components/Sidebar.tsx:52
+#: src/client/components/Sidebar.tsx:55
 msgid "统计"
 msgstr "统计"
 
-#: src/client/main.tsx:85
+#: src/client/components/ScoreCardView.tsx:14
 msgid "自然度"
 msgstr "自然度"
 
-#: src/client/main.tsx:187
+#: src/client/components/StatsPanel.tsx:87
 msgid "薄弱类型分布"
 msgstr "薄弱类型分布"
 
-#: src/client/main.tsx:375
+#: src/client/components/Sidebar.tsx:33
 msgid "词感 · 表达练习"
 msgstr "词感 · 表达练习"
 
-#: src/client/main.tsx:87
+#: src/client/components/ScoreCardView.tsx:16
 msgid "语域"
 msgstr "语域"
 
-#: src/client/main.tsx:300
+#: src/client/components/ChatPanel.tsx:27
 msgid "输入你的消息…"
 msgstr "输入你的消息…"
 
-#: src/client/main.tsx:69
+#: src/client/components/QuestionCardView.tsx:52
 msgid "输入你觉得最贴切的词"
 msgstr "输入你觉得最贴切的词"
 
-#: src/client/main.tsx:38
-#: src/client/main.tsx:209
+#: src/client/components/QuestionCardView.tsx:21
+#: src/client/hooks/use-knowledge-labels.ts:17
 msgid "选择题"
 msgstr "选择题"
 
-#: src/client/main.tsx:188
+#: src/client/components/StatsPanel.tsx:88
 msgid "选择题 vs 填空题"
 msgstr "选择题 vs 填空题"
 
-#: src/client/main.tsx:30
-#: src/client/main.tsx:207
+#: src/client/hooks/use-knowledge-labels.ts:9
 msgid "逻辑词"
 msgstr "逻辑词"
 
-#: src/client/main.tsx:31
-#: src/client/main.tsx:208
+#: src/client/hooks/use-knowledge-labels.ts:10
 msgid "领域词"
 msgstr "领域词"

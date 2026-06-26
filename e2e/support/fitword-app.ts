@@ -4,9 +4,6 @@ import net from 'node:net';
 import path from 'node:path';
 
 import type { Page, TestInfo } from '@playwright/test';
-import { config as loadDotenv } from 'dotenv';
-
-loadDotenv({ path: path.resolve(process.cwd(), '.env'), quiet: true });
 
 export type FitwordE2eMode = 'demo' | 'real-llm';
 
