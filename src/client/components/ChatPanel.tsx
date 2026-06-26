@@ -1,56 +1,84 @@
 import { Trans, useLingui } from '@lingui/react/macro';
 import { Send } from 'lucide-react';
-import { useMemo } from 'react';
 import { Switch } from '@/components/ui/switch';
-import { Conversation, ConversationContent } from '@/components/ai-elements/conversation';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+import {
+  Conversation,
+  ConversationContent,
+  ConversationScrollButton,
+} from '@/components/ai-elements/conversation';
+import {
+  PromptInput,
+  PromptInputFooter,
+  PromptInputSubmit,
+  PromptInputTextarea,
+  PromptInputTools,
+} from '@/components/ai-elements/prompt-input';
 import type { ChatMessage } from '../../shared/types.js';
 import { ChatMessageView } from './ChatMessageView';
+import { WelcomeScreen } from './WelcomeScreen';
 
 export function ChatPanel({
+  hasSession,
   messages,
   input,
   scoreMode,
+  isSending,
   onInputChange,
   onScoreModeChange,
   onSend,
+  onQuestionAnswer,
 }: {
+  hasSession: boolean;
   messages: ChatMessage[];
   input: string;
   scoreMode: boolean;
+  isSending: boolean;
   onInputChange: (value: string) => void;
   onScoreModeChange: (value: boolean) => void;
   onSend: (answer?: string) => void;
+  onQuestionAnswer: (questionId: string, answer: string) => void;
 }) {
   const { t } = useLingui();
-  const placeholder = useMemo(() => (scoreMode ? t`粘贴需要评分的文字…` : t`输入你的消息…`), [scoreMode, t]);
+  const placeholder = scoreMode ? t`粘贴需要评分的文字…` : t`输入你的消息…`;
 
   return (
     <>
-      <Conversation>
-        <ConversationContent>
-          {messages.map((message) => <ChatMessageView key={message.id} message={message} onAnswer={onSend} />)}
-        </ConversationContent>
-      </Conversation>
-      <div className="border-t bg-background/95 p-4 backdrop-blur">
-        <div className="mb-3 flex items-center gap-2">
-          <Switch checked={scoreMode} onCheckedChange={onScoreModeChange} />
-          <span className="text-sm text-muted-foreground"><Trans>写作评分</Trans></span>
-        </div>
-        <form
-          className="flex items-end gap-3"
-          onSubmit={(event) => {
-            event.preventDefault();
-            onSend();
-          }}
-        >
-          <Textarea rows={scoreMode ? 4 : 1} value={input} onChange={(event) => onInputChange(event.target.value)} placeholder={placeholder} />
-          <Button type="submit">
+      {hasSession ? (
+        <Conversation>
+          <ConversationContent className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6">
+            {messages.map((message) => (
+              <ChatMessageView key={message.id} message={message} onQuestionAnswer={onQuestionAnswer} />
+            ))}
+          </ConversationContent>
+          <ConversationScrollButton />
+        </Conversation>
+      ) : (
+        <WelcomeScreen />
+      )}
+      <PromptInput
+        className="border-t bg-background/95 px-4 py-3 backdrop-blur sm:px-6"
+        onSubmit={(message) => onSend(message.text)}
+      >
+        <PromptInputTextarea
+          className={scoreMode ? 'min-h-28' : undefined}
+          rows={scoreMode ? 4 : 1}
+          value={input}
+          onChange={(event) => onInputChange(event.target.value)}
+          placeholder={placeholder}
+          disabled={isSending}
+        />
+        <PromptInputFooter>
+          <PromptInputTools>
+            <Switch checked={scoreMode} onCheckedChange={onScoreModeChange} disabled={isSending} />
+            <span>
+              <Trans>写作评分</Trans>
+            </span>
+          </PromptInputTools>
+          <PromptInputSubmit size="sm" aria-label={t`发送`} disabled={isSending || !input.trim()}>
             <Send className="size-4" /> <Trans>发送</Trans>
-          </Button>
-        </form>
-      </div>
+          </PromptInputSubmit>
+        </PromptInputFooter>
+      </PromptInput>
     </>
   );
 }

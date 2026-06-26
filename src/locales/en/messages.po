@@ -13,39 +13,47 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
-#: src/client/components/StatsPanel.tsx:38
+#: src/client/components/Sidebar.tsx:119
+msgid "中文"
+msgstr "Chinese"
+
+#: src/client/components/StatsPanel.tsx:61
 msgid "优先打磨"
 msgstr "Priority practice"
 
-#: src/client/components/StatsPanel.tsx:42
-#: src/client/components/StatsPanel.tsx:76
+#: src/client/components/StatsPanel.tsx:36
+#: src/client/components/StatsPanel.tsx:66
 msgid "优质率"
 msgstr "Good rate"
 
 #: src/client/App.tsx:14
-msgid "你好，我是 fitword（词感）。说一个想练的话题，或打开写作评分开关粘贴一段文字。"
-msgstr "Hi, I am fitword (Word Sense). Tell me what you want to practice, or turn on the writing score switch to paste a passage."
+#~ msgid "你好，我是 fitword（词感）。说一个想练的话题，或打开写作评分开关粘贴一段文字。"
+#~ msgstr "Hi, I am fitword (Word Sense). Tell me what you want to practice, or turn on the writing score switch to paste a passage."
 
 #: src/client/main.tsx:286
 #~ msgid "你好，我是 fitword（词感）。说一个想练的话题，或点击“提交评分”粘贴一段文字。"
 #~ msgstr "Hi, I am fitword (Word Sense). Tell me what you want to practice, or choose \"Score writing\" to paste a passage."
 
-#: src/client/components/ScoreCardView.tsx:13
+#: src/client/components/ScoreCardView.tsx:12
 msgid "具体度"
 msgstr "Specificity"
 
-#: src/client/components/ChatPanel.tsx:39
+#: src/client/components/ChatPanel.tsx:74
+#: src/client/components/ScoreCardView.tsx:20
 #: src/client/components/ScoreCardView.tsx:25
-#: src/client/components/StatsPanel.tsx:91
+#: src/client/components/StatsPanel.tsx:85
 msgid "写作评分"
 msgstr "Writing score"
 
-#: src/client/components/ScoreCardView.tsx:12
+#: src/client/components/ScoreCardView.tsx:11
 msgid "准确度"
 msgstr "Accuracy"
 
 #. placeholder {0}: String(data.message ?? '未知错误')
-#: src/client/App.tsx:90
+#. placeholder {0}: error instanceof Error ? error.message : String(error)
+#: src/client/hooks/use-sessions.ts:168
+#: src/client/hooks/use-sessions.ts:284
+#: src/client/hooks/use-sessions.ts:293
 msgid "出错了：{0}"
 msgstr "Error: {0}"
 
@@ -54,14 +62,23 @@ msgid "分数是参考，重点看可操作的替换和改写。"
 msgstr "Scores are only a reference; focus on actionable replacements and rewrites."
 
 #: src/client/components/Sidebar.tsx:63
-msgid "切换到中文"
-msgstr "Switch to Chinese"
+#~ msgid "切换到中文"
+#~ msgstr "Switch to Chinese"
 
 #: src/client/components/Sidebar.tsx:66
-msgid "切换到英文"
-msgstr "Switch to English"
+#~ msgid "切换到英文"
+#~ msgstr "Switch to English"
 
-#: src/client/components/StatsPanel.tsx:60
+#: src/client/components/Sidebar.tsx:77
+#: src/client/components/Sidebar.tsx:77
+#~ msgid "删除对话"
+#~ msgstr "Delete conversation"
+
+#: src/client/App.tsx:89
+#~ msgid "删除这个对话？"
+#~ msgstr "Delete this conversation?"
+
+#: src/client/components/StatsPanel.tsx:20
 msgid "加载统计中…"
 msgstr "Loading stats..."
 
@@ -69,7 +86,8 @@ msgstr "Loading stats..."
 msgid "动词"
 msgstr "Verbs"
 
-#: src/client/components/ChatPanel.tsx:50
+#: src/client/components/ChatPanel.tsx:77
+#: src/client/components/ChatPanel.tsx:78
 msgid "发送"
 msgstr "Send"
 
@@ -77,12 +95,12 @@ msgstr "Send"
 #~ msgid "取消评分"
 #~ msgstr "Cancel scoring"
 
-#: src/client/components/StatsPanel.tsx:70
+#: src/client/components/StatsPanel.tsx:30
 msgid "只读展示本地 SQLite 中的练习质量分布。"
 msgstr "Read-only view of practice quality distribution in local SQLite."
 
-#: src/client/components/StatsPanel.tsx:41
-#: src/client/components/StatsPanel.tsx:75
+#: src/client/components/StatsPanel.tsx:35
+#: src/client/components/StatsPanel.tsx:65
 msgid "可用率"
 msgstr "Usable rate"
 
@@ -90,49 +108,80 @@ msgstr "Usable rate"
 msgid "名词"
 msgstr "Nouns"
 
-#: src/client/components/QuestionCardView.tsx:21
+#: src/client/components/QuestionCardView.tsx:19
 #: src/client/hooks/use-knowledge-labels.ts:18
 msgid "填空题"
 msgstr "Fill-in"
 
-#: src/client/components/Sidebar.tsx:42
-#: src/client/components/Sidebar.tsx:45
+#: src/client/components/Sidebar.tsx:59
 msgid "对话"
 msgstr "Chat"
 
 #. placeholder {0}: stats.writing_summary.average_total_score ?? 0
-#: src/client/components/StatsPanel.tsx:94
+#: src/client/components/StatsPanel.tsx:88
 msgid "平均总分：{0}"
 msgstr "Average total score: {0}"
+
+#: src/client/components/Sidebar.tsx:77
+#: src/client/components/Sidebar.tsx:77
+msgid "归档对话"
+msgstr "Archive conversation"
+
+#: src/client/hooks/use-sessions.ts:140
+msgid "归档这个对话？"
+msgstr "Archive this conversation?"
 
 #: src/client/hooks/use-knowledge-labels.ts:8
 msgid "形容词"
 msgstr "Adjectives"
 
-#: src/client/components/StatsPanel.tsx:43
-#: src/client/components/StatsPanel.tsx:77
+#: src/client/components/StatsPanel.tsx:37
+#: src/client/components/StatsPanel.tsx:67
 msgid "待打磨率"
 msgstr "Needs work rate"
 
 #. placeholder {0}: stats.writing_summary.total_records
-#: src/client/components/StatsPanel.tsx:92
+#: src/client/components/StatsPanel.tsx:86
 msgid "总记录 {0} 次"
 msgstr "{0} records"
 
-#: src/client/components/StatsPanel.tsx:74
+#: src/client/components/StatsPanel.tsx:34
 msgid "总题数"
 msgstr "Total questions"
+
+#: src/client/components/ChatPanel.tsx:41
+#: src/client/components/ChatPanel.tsx:47
+#~ msgid "或新建对话开始练习"
+#~ msgstr "Or create a conversation to start practicing"
 
 #: src/client/main.tsx:409
 #: src/client/main.tsx:414
 #~ msgid "提交评分"
 #~ msgstr "Score writing"
 
-#: src/client/components/StatsPanel.tsx:33
+#: src/client/components/Sidebar.tsx:73
+#: src/client/components/Sidebar.tsx:75
+#~ msgid "新对话"
+#~ msgstr "New conversation"
+
+#: src/client/components/Sidebar.tsx:61
+#: src/client/components/Sidebar.tsx:61
+msgid "新建对话"
+msgstr "New conversation"
+
+#: src/client/components/Sidebar.tsx:68
+msgid "暂无对话"
+msgstr "No conversations"
+
+#: src/client/components/StatsPanel.tsx:56
 msgid "暂无数据，完成练习后会显示。"
 msgstr "No data yet. Complete practice to see it here."
 
-#: src/client/components/QuestionCardView.tsx:54
+#: src/client/components/Sidebar.tsx:116
+msgid "界面语言"
+msgstr "Interface language"
+
+#: src/client/components/QuestionCardView.tsx:64
 msgid "确认答案"
 msgstr "Confirm answer"
 
@@ -140,53 +189,66 @@ msgstr "Confirm answer"
 msgid "答完后我会给出语境适配度和表达差异。"
 msgstr "After you answer, I will show context fit and expression differences."
 
-#: src/client/components/ChatPanel.tsx:27
+#: src/client/components/ChatPanel.tsx:42
 msgid "粘贴需要评分的文字…"
 msgstr "Paste text to score..."
 
-#: src/client/components/StatsPanel.tsx:69
+#: src/client/components/StatsPanel.tsx:29
 msgid "练习统计"
 msgstr "Practice stats"
 
-#: src/client/components/ScoreCardView.tsx:15
+#: src/client/components/ScoreCardView.tsx:14
 msgid "结构"
 msgstr "Structure"
 
-#: src/client/components/Sidebar.tsx:52
-#: src/client/components/Sidebar.tsx:55
+#: src/client/components/Sidebar.tsx:90
+#: src/client/components/Sidebar.tsx:92
 msgid "统计"
 msgstr "Stats"
 
-#: src/client/components/ScoreCardView.tsx:14
+#: src/client/components/ScoreCardView.tsx:13
 msgid "自然度"
 msgstr "Naturalness"
 
-#: src/client/components/StatsPanel.tsx:87
+#: src/client/components/StatsPanel.tsx:48
 msgid "薄弱类型分布"
 msgstr "Weak type distribution"
 
-#: src/client/components/Sidebar.tsx:33
+#: src/client/components/Sidebar.tsx:104
+#: src/client/components/Sidebar.tsx:104
+#: src/client/components/Sidebar.tsx:109
+#: src/client/components/Sidebar.tsx:113
+msgid "设置"
+msgstr "Settings"
+
+#: src/client/components/Sidebar.tsx:52
+#: src/client/components/WelcomeScreen.tsx:11
 msgid "词感 · 表达练习"
 msgstr "Word sense · Expression practice"
 
-#: src/client/components/ScoreCardView.tsx:16
+#: src/client/components/ScoreCardView.tsx:15
 msgid "语域"
 msgstr "Register"
 
-#: src/client/components/ChatPanel.tsx:27
+#: src/client/components/ChatPanel.tsx:42
 msgid "输入你的消息…"
 msgstr "Enter your message..."
 
-#: src/client/components/QuestionCardView.tsx:52
+#: src/client/components/QuestionCardView.tsx:62
 msgid "输入你觉得最贴切的词"
 msgstr "Enter the word that fits best"
 
-#: src/client/components/QuestionCardView.tsx:21
+#: src/client/components/ChatPanel.tsx:40
+#: src/client/components/ChatPanel.tsx:46
+#~ msgid "选择一个对话"
+#~ msgstr "Select a conversation"
+
+#: src/client/components/QuestionCardView.tsx:19
 #: src/client/hooks/use-knowledge-labels.ts:17
 msgid "选择题"
 msgstr "Choice"
 
-#: src/client/components/StatsPanel.tsx:88
+#: src/client/components/StatsPanel.tsx:49
 msgid "选择题 vs 填空题"
 msgstr "Choice vs fill-in"
 
