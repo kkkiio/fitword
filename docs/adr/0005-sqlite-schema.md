@@ -1,9 +1,5 @@
 # ADR 0005: SQLite Schema
 
-## 状态
-
-已采纳
-
 ## 背景
 
 fitword 需要持久化用户的练习数据。SQLite 已在 ADR 0001 中选定，需要定义具体表结构。

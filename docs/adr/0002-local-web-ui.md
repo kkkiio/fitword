@@ -1,9 +1,5 @@
 # ADR 0002: 本地 Web UI
 
-## 状态
-
-已采纳
-
 ## 背景
 
 fitword 需要用户交互界面来承载 chatbot 对话和题目展示。原始 PRD 提到"CLI 或本地 Web UI"两种可能性，需要做出选择。
@@ -14,7 +10,7 @@ fitword 需要用户交互界面来承载 chatbot 对话和题目展示。原始
 
 - 前端：React + Tailwind CSS
 - 后端：本地 HTTP 服务（Hono 或类似轻量框架）
-- 启动方式：命令行启动后自动打开浏览器 tab
+- 启动方式：命令行启动后访问终端输出的 localhost 地址
 - 无远程部署，仅 localhost 访问
 
 ## 备选方案

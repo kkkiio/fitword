@@ -1,9 +1,5 @@
 # ADR 0012: 多 Session 管理
 
-## 状态
-
-已采纳
-
 ## 背景
 
 当前 fitword 只有一个全局 pi agent 实例和一条对话流。用户刷新页面后消息丢失。需要支持多个独立 session，每个 session 持久化在 pi SDK 的 jsonl 文件中，刷新后可恢复。
