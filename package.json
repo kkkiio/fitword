@@ -7,7 +7,7 @@
     "i18n:extract": "lingui extract",
     "i18n:compile": "lingui compile --typescript",
     "bddgen": "bddgen",
-    "test:e2e": "pnpm run build && pnpm run bddgen && node --env-file .env node_modules/@playwright/test/cli.js test",
+    "test:e2e": "pnpm run build && pnpm run bddgen && playwright test",
     "typecheck": "tsc --noEmit",
     "test": "vitest run src",
     "build": "vite build"

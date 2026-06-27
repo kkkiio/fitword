@@ -128,6 +128,15 @@ just run
 
 ### Validate
 
+For routine code changes, run fast validation by default:
+
+```bash
+just check
+just test
+```
+
+Run local Playwright BDD e2e tests before committing or when changing `e2e/`, `playwright.config.ts`, server startup, SSE behavior, or critical user flows. For ordinary feature branches, prefer pushing the branch and letting GitHub CI run e2e through `.github/workflows/e2e.yml`.
+
 ```bash
 pnpm run typecheck
 pnpm run test
