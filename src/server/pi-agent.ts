@@ -13,6 +13,13 @@ import {
   SettingsManager,
 } from '@earendil-works/pi-coding-agent';
 import {
+  fauxAssistantMessage,
+  fauxText,
+  fauxToolCall,
+  registerFauxProvider,
+  type FauxProviderRegistration,
+} from '@earendil-works/pi-ai/compat';
+import {
   createSessionFromFirstMessage,
   fitwordDataDir,
   fitwordSessionDir,
@@ -61,21 +68,48 @@ interface ManagedPiSession {
   unsubscribe?: () => void;
   historyManager?: SessionManager;
   pendingQuestion?: PendingQuestion;
+  llmProvider?: FitwordLlmProvider;
 }
 
+type FitwordLlmProvider = 'openai-compatible' | 'faux';
+type FitwordLlmConfig =
+  | {
+      provider: 'openai-compatible';
+      openAIApiKey: string;
+      openAIBaseUrl: string;
+      openAIModel: string;
+    }
+  | {
+      provider: 'faux';
+    };
+
 const openAICompatibleProvider = 'fitword-openai-compatible';
+const fauxProviderName = 'fitword-faux';
+const fauxApiName = 'fitword-faux';
+const fauxModelId = 'fitword-faux-1';
 const sessionCache = new Map<string, ManagedPiSession>();
 const maxCachedAgents = 10;
 const maxBufferedEvents = 500;
+let fauxProvider: FauxProviderRegistration | undefined;
 const configuredQuestionTimeoutMs = Number.parseInt(process.env.FITWORD_QUESTION_TIMEOUT_MS ?? '', 10);
 const questionAnswerTimeoutMs =
   Number.isFinite(configuredQuestionTimeoutMs) && configuredQuestionTimeoutMs > 0
     ? configuredQuestionTimeoutMs
     : 15 * 60 * 1000;
 
+function getRequiredLlmConfig(): FitwordLlmConfig {
+  const configuredProvider = process.env.FITWORD_LLM_PROVIDER?.trim() || 'openai-compatible';
+  if (configuredProvider === 'faux') {
+    if (process.env.NODE_ENV !== 'test') {
+      throw new Error('FITWORD_LLM_PROVIDER=faux 只允许在 NODE_ENV=test 下使用。');
+    }
+    return { provider: 'faux' };
+  }
 
+  if (configuredProvider !== 'openai-compatible') {
+    throw new Error('FITWORD_LLM_PROVIDER 只支持 openai-compatible 或 faux。');
+  }
 
-function getRequiredLlmConfig() {
   const openAIApiKey = process.env.OPENAI_API_KEY?.trim();
   const openAIBaseUrl = process.env.OPENAI_BASE_URL?.trim();
   const openAIModel = process.env.OPENAI_MODEL?.trim();
@@ -88,7 +122,7 @@ function getRequiredLlmConfig() {
     throw new Error(`LLM 配置缺少 ${missingConfig.join(', ')}；请同时配置 OPENAI_API_KEY、OPENAI_BASE_URL 和 OPENAI_MODEL。`);
   }
 
-  return { openAIApiKey, openAIBaseUrl, openAIModel };
+  return { provider: 'openai-compatible', openAIApiKey, openAIBaseUrl, openAIModel };
 }
 
 function stripInstructionTag(text: string) {
@@ -340,14 +374,129 @@ function createFitwordTools(state: ManagedPiSession) {
   return [askQuestionTool, recordAnswerTool, evaluateWritingTool, getPracticeStatsTool];
 }
 
+function getFauxProvider() {
+  if (fauxProvider) {
+    return fauxProvider;
+  }
+
+  fauxProvider = registerFauxProvider({
+    api: fauxApiName,
+    provider: fauxProviderName,
+    models: [
+      {
+        id: fauxModelId,
+        name: 'Fitword Faux',
+        reasoning: false,
+        input: ['text'],
+        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+        contextWindow: 128000,
+        maxTokens: 4096,
+      },
+    ],
+  });
+
+  return fauxProvider;
+}
+
+function setFauxResponsesForTurn(message: string, intent: 'score' | undefined) {
+  const provider = getFauxProvider();
+
+  if (intent === 'score') {
+    provider.setResponses([
+      fauxAssistantMessage(
+        [
+          fauxToolCall('evaluate_writing', {
+            original_text: message,
+            total_score: 3.8,
+            dimensions: {
+              accuracy: 3.5,
+              specificity: 3.2,
+              naturalness: 4,
+              structure: 3.8,
+              register: 4.2,
+            },
+            main_issues: '表达比较笼统，缺少具体进展、动作和结果。',
+            suggestions: [
+              {
+                original: '推进很正常',
+                replacement: '按计划推进',
+                reason: '更适合项目描述，也更明确地表达进度状态。',
+              },
+              {
+                original: '做了很多事情',
+                replacement: '完成了接口联调、风险梳理和方案同步',
+                reason: '用具体动作替代笼统概括，信息密度更高。',
+              },
+            ],
+            rewrite: '本周项目按计划推进，团队完成了接口联调、风险梳理和方案同步，整体进展稳定。',
+          }),
+        ],
+        { stopReason: 'toolUse' },
+      ),
+      fauxAssistantMessage([fauxText('已完成评分。')]),
+    ]);
+    return;
+  }
+
+  const wantsFillQuestion = /填空|填词|周报/u.test(message);
+  const question = wantsFillQuestion
+    ? ({
+        format: 'fill',
+        question: '周报里说“这个方案可以 ____ 跨团队进度”，填哪个词更自然？',
+        knowledge_type: 'verb',
+        topic_tag: message.includes('周报') ? '周报' : '填空练习',
+      } as const)
+    : ({
+        format: 'choice',
+        question: '项目汇报里说“我们 ____ 了风险并同步方案”，哪个动词最贴切？',
+        knowledge_type: 'verb',
+        topic_tag: message.includes('项目汇报') ? '项目汇报' : '表达练习',
+        candidates: ['识别', '看见', '感觉', '知道'],
+        correct: '识别',
+      } as const);
+
+  provider.setResponses([
+    fauxAssistantMessage([fauxToolCall('ask_question', question)], { stopReason: 'toolUse' }),
+    (context) => {
+      const toolResult = [...context.messages]
+        .reverse()
+        .find((candidate) => candidate.role === 'toolResult' && candidate.toolName === 'ask_question');
+      const textBlock = Array.isArray(toolResult?.content)
+        ? toolResult.content.find((block) => block.type === 'text' && typeof block.text === 'string')
+        : undefined;
+      const parsed = textBlock?.type === 'text' ? JSON.parse(textBlock.text) : {};
+      const userAnswer = typeof parsed.user_answer === 'string' ? parsed.user_answer : '';
+      return fauxAssistantMessage(
+        [
+          fauxToolCall('record_answer', {
+            ...question,
+            user_answer: userAnswer,
+            quality: question.format === 'choice' ? (parsed.quality === 2 ? 2 : 0) : userAnswer.includes('统筹') ? 2 : userAnswer ? 1 : 0,
+          }),
+        ],
+        { stopReason: 'toolUse' },
+      );
+    },
+    fauxAssistantMessage([
+      fauxText(wantsFillQuestion ? '“统筹”能表达主动协调多个团队的动作，比泛泛地说“处理进度”更具体。' : '这道题考察项目汇报中更准确的动作动词。'),
+    ]),
+  ]);
+}
+
 async function createFitwordPiSession(state: ManagedPiSession) {
   const authStorage = AuthStorage.create(path.join(fitwordDataDir, 'auth.json'));
   const modelRegistry = ModelRegistry.create(authStorage, path.join(fitwordDataDir, 'models.json'));
   const settingsManager = SettingsManager.inMemory({ compaction: { enabled: false } });
-  const { openAIApiKey, openAIBaseUrl, openAIModel } = getRequiredLlmConfig();
+  const llmConfig = getRequiredLlmConfig();
   let selectedModel: CreateAgentSessionOptions['model'];
 
-  const normalizedBaseUrl = openAIBaseUrl.replace(/\/+$/, '');
+  if (llmConfig.provider === 'faux') {
+    const provider = getFauxProvider();
+    authStorage.setRuntimeApiKey(fauxProviderName, 'fitword-faux-key');
+    selectedModel = provider.getModel();
+  } else {
+    const { openAIApiKey, openAIBaseUrl, openAIModel } = llmConfig;
+    const normalizedBaseUrl = openAIBaseUrl.replace(/\/+$/, '');
     const builtInModel = modelRegistry
       .getAll()
       .find((candidate) => candidate.id === openAIModel && candidate.baseUrl.replace(/\/+$/, '') === normalizedBaseUrl);
@@ -378,6 +527,9 @@ async function createFitwordPiSession(state: ManagedPiSession) {
     if (!selectedModel) {
       throw new Error(`无法注册 LLM 模型 ${openAIModel}。`);
     }
+  }
+
+  state.llmProvider = llmConfig.provider;
 
   const resourceLoader = new DefaultResourceLoader({
     cwd: fitwordDataDir,
@@ -479,6 +631,9 @@ async function runSessionTurn(
       signal?.addEventListener('abort', abortCurrentTurn, { once: true });
 
       const prompt = intent === 'score' ? `<instruction>用户请求写作评分，请评分并调用 evaluate_writing 工具保存。</instruction>\n${message}` : message;
+      if (state.llmProvider === 'faux') {
+        setFauxResponsesForTurn(message, intent);
+      }
       await piSession.prompt(prompt, { source: 'user' } as any);
     } finally {
       if (abortCurrentTurn) {

@@ -27,7 +27,7 @@ export class FitwordWorkspacePage {
   }
 
   async expectEmptyStats(): Promise<void> {
-    await this.page.getByRole('button', { name: /统计/ }).click();
+    await this.openStats();
     await expect(this.page.getByRole('heading', { name: '练习统计', exact: true })).toBeVisible();
     await expect(this.page.getByText('答题概览')).toBeVisible();
     await expect(this.page.getByText('暂无答题数据，完成练习后会显示概览。')).toBeVisible();
@@ -57,17 +57,43 @@ export class FitwordWorkspacePage {
   }
 
   async expectChoiceQuestion(): Promise<void> {
-    await expect(this.page.getByText('选择题')).toBeVisible({ timeout: 90_000 });
+    await expect(this.page.getByRole('button', { name: /^选择题/ })).toBeVisible({ timeout: 90_000 });
     await expect(this.page.getByText('答完后我会给出语境适配度和表达差异。')).toBeVisible();
     await expect(this.page.locator('button').filter({ hasText: /[A-D]/ }).first()).toBeVisible();
+  }
+
+  async expectFillQuestion(): Promise<void> {
+    await expect(this.page.getByRole('button', { name: /^填空题/ })).toBeVisible({ timeout: 90_000 });
+    await expect(this.page.getByText('答完后我会给出语境适配度和表达差异。')).toBeVisible();
+    await expect(this.page.getByPlaceholder('输入你觉得最贴切的词')).toBeVisible();
   }
 
   async chooseCandidate(candidate: string): Promise<void> {
     await this.page.getByRole('button', { name: new RegExp(candidate) }).click();
   }
 
+  async fillAnswer(answer: string): Promise<void> {
+    await this.page.getByPlaceholder('输入你觉得最贴切的词').fill(answer);
+    await this.page.getByRole('button', { name: '确认答案' }).click();
+  }
+
   async expectFeedback(text: string): Promise<void> {
     await expect(this.page.getByText(text)).toBeVisible();
+  }
+
+  async expectMessage(text: string): Promise<void> {
+    await expect(this.page.getByRole('log').getByText(text, { exact: true })).toBeVisible();
+  }
+
+  async startEmptyConversation(): Promise<void> {
+    await this.page.getByRole('button', { name: /新建对话/ }).first().click();
+    await expect(this.page.getByPlaceholder('输入你的消息…')).toBeVisible();
+  }
+
+  async selectConversation(title: string): Promise<void> {
+    const escapedTitle = title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    await this.page.getByRole('button', { name: new RegExp(`^${escapedTitle}$`) }).click();
+    await this.expectMessage(title);
   }
 
   async submitWritingForScore(text: string): Promise<void> {
@@ -84,5 +110,28 @@ export class FitwordWorkspacePage {
     await expect(this.page.getByText('具体度', { exact: true }).last()).toBeVisible();
     await expect(this.page.getByText('自然度', { exact: true }).last()).toBeVisible();
     await expect(this.page.locator('blockquote.border-amber-500')).toBeVisible();
+  }
+
+  async openStats(): Promise<void> {
+    await this.page.getByRole('button', { name: /统计/ }).click();
+    await expect(this.page.getByRole('heading', { name: '练习统计', exact: true })).toBeVisible();
+  }
+
+  async expectStatsSummary(questionTotal: number, writingTotal: number): Promise<void> {
+    const totalQuestionCard = this.page.getByText('总题数').locator('xpath=..');
+    const writingCountCard = this.page.getByText('评分次数').locator('xpath=..');
+    const averageScoreCard = this.page.getByText('平均总分').locator('xpath=..');
+
+    await expect(totalQuestionCard.getByText(String(questionTotal), { exact: true })).toBeVisible();
+    await expect(this.page.getByText('优质率').first()).toBeVisible();
+    await expect(writingCountCard.getByText(String(writingTotal), { exact: true })).toBeVisible();
+    await expect(averageScoreCard.getByText('3.8', { exact: true })).toBeVisible();
+  }
+
+  async expectChoiceAndFillStats(): Promise<void> {
+    const rows = this.page.locator('div.rounded-lg.border');
+
+    await expect(rows.filter({ hasText: '选择题' }).filter({ hasText: '1 题' })).toBeVisible();
+    await expect(rows.filter({ hasText: '填空题' }).filter({ hasText: '1 题' })).toBeVisible();
   }
 }

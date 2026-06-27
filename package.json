@@ -13,6 +13,7 @@
     "build": "vite build"
   },
   "dependencies": {
+    "@earendil-works/pi-ai": "^0.80.2",
     "@earendil-works/pi-coding-agent": "^0.80.2",
     "@hono/node-server": "latest",
     "@lingui/core": "^6.4.0",

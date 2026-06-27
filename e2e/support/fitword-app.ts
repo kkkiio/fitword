@@ -5,11 +5,7 @@ import path from 'node:path';
 
 import type { Page, TestInfo } from '@playwright/test';
 
-export type FitwordE2eMode = 'local' | 'real-llm';
-
-export function missingRealLlmConfig(): string[] {
-  return ['OPENAI_API_KEY', 'OPENAI_BASE_URL', 'OPENAI_MODEL'].filter((name) => !process.env[name]?.trim());
-}
+export type FitwordE2eMode = 'local' | 'faux' | 'real-llm';
 
 export class FitwordE2eApp {
   readonly page: Page;
@@ -67,7 +63,13 @@ export class FitwordE2eApp {
         PORT: String(port),
         FITWORD_DATA_DIR: this.scenarioRoot,
         FITWORD_DB: this.dbPath,
-        ...(mode === 'local' ? { OPENAI_API_KEY: '', OPENAI_BASE_URL: '', OPENAI_MODEL: '' } : {}),
+        ...(mode === 'local'
+          ? { FITWORD_LLM_PROVIDER: 'openai-compatible', OPENAI_API_KEY: '', OPENAI_BASE_URL: '', OPENAI_MODEL: '' }
+          : {}),
+        ...(mode === 'faux'
+          ? { FITWORD_LLM_PROVIDER: 'faux', OPENAI_API_KEY: '', OPENAI_BASE_URL: '', OPENAI_MODEL: '' }
+          : {}),
+        ...(mode === 'real-llm' ? { FITWORD_LLM_PROVIDER: 'openai-compatible' } : {}),
       };
       const child = spawn(process.execPath, [path.resolve(process.cwd(), 'node_modules/tsx/dist/cli.mjs'), 'src/server/index.ts'], {
         cwd: process.cwd(),
