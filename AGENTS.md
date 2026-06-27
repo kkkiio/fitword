@@ -62,7 +62,6 @@ fitword/
 │       ├── 0003-agent-tools-design.md # Tool definitions (ask_question, record_answer, evaluate_writing, get_practice_stats)
 │       ├── 0004-pi-sdk-agent-framework.md  # pi SDK vs alternatives
 │       ├── 0005-sqlite-schema.md      # Table definitions and queries
-│       ├── 0006-system-prompt.md      # Agent prompt behavior rules
 │       ├── 0007-ui-layout.md          # Web UI layout decision
 │       └── 0008-i18n-and-bdd-e2e.md   # Lingui UI i18n + playwright-bdd e2e
 ├── e2e/                               # playwright-bdd features, steps, fixtures, page objects
