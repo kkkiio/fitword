@@ -4,9 +4,7 @@ import { activateLocale, i18n, supportedLocales, type SupportedLocale } from '..
 const STORAGE_KEY = 'fitword.locale';
 
 function resolveInitialLocale(): SupportedLocale {
-  return supportedLocales.includes(i18n.locale as SupportedLocale)
-    ? (i18n.locale as SupportedLocale)
-    : 'zh-CN';
+  return supportedLocales.includes(i18n.locale as SupportedLocale) ? (i18n.locale as SupportedLocale) : 'zh-CN';
 }
 
 export function useLocale() {

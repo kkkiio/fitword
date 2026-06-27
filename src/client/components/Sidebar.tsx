@@ -49,14 +49,18 @@ export function Sidebar({
       <SidebarHeader className="px-3 py-3">
         <div className="rounded-lg bg-sidebar-primary p-3 text-sidebar-primary-foreground">
           <h1 className="text-xl font-semibold">fitword</h1>
-          <p className="text-xs opacity-80"><Trans>词感 · 表达练习</Trans></p>
+          <p className="text-xs opacity-80">
+            <Trans>词感 · 表达练习</Trans>
+          </p>
         </div>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>
             <MessageSquareText className="mr-2 size-4" />
-            <span><Trans>对话</Trans></span>
+            <span>
+              <Trans>对话</Trans>
+            </span>
           </SidebarGroupLabel>
           <SidebarGroupAction type="button" aria-label={t`新建对话`} title={t`新建对话`} onClick={onSessionCreate}>
             <Plus />
@@ -65,16 +69,28 @@ export function Sidebar({
             <SidebarMenu>
               {sessions.length === 0 ? (
                 <SidebarMenuItem>
-                  <div className="px-2 py-3 text-xs text-sidebar-foreground/60"><Trans>暂无对话</Trans></div>
+                  <div className="px-2 py-3 text-xs text-sidebar-foreground/60">
+                    <Trans>暂无对话</Trans>
+                  </div>
                 </SidebarMenuItem>
               ) : null}
               {sessions.map((session) => (
                 <SidebarMenuItem key={session.id}>
-                  <SidebarMenuButton isActive={activeView === 'chat' && selectedSessionId === session.id} onClick={() => onSessionSelect(session.id)} tooltip={session.title}>
+                  <SidebarMenuButton
+                    isActive={activeView === 'chat' && selectedSessionId === session.id}
+                    onClick={() => onSessionSelect(session.id)}
+                    tooltip={session.title}
+                  >
                     <MessageSquareText className="size-4" />
                     <span>{session.title}</span>
                   </SidebarMenuButton>
-                  <SidebarMenuAction type="button" showOnHover aria-label={t`归档对话`} title={t`归档对话`} onClick={() => onSessionArchive(session.id)}>
+                  <SidebarMenuAction
+                    type="button"
+                    showOnHover
+                    aria-label={t`归档对话`}
+                    title={t`归档对话`}
+                    onClick={() => onSessionArchive(session.id)}
+                  >
                     <Archive />
                   </SidebarMenuAction>
                 </SidebarMenuItem>
@@ -89,7 +105,9 @@ export function Sidebar({
               <SidebarMenuItem>
                 <SidebarMenuButton isActive={activeView === 'stats'} onClick={() => onViewChange('stats')} tooltip={t`统计`}>
                   <BarChart3 className="size-4" />
-                  <span><Trans>统计</Trans></span>
+                  <span>
+                    <Trans>统计</Trans>
+                  </span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
@@ -106,19 +124,35 @@ export function Sidebar({
                 </Button>
               </DialogTrigger>
             </TooltipTrigger>
-            <TooltipContent side="right"><Trans>设置</Trans></TooltipContent>
+            <TooltipContent side="right">
+              <Trans>设置</Trans>
+            </TooltipContent>
           </Tooltip>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle><Trans>设置</Trans></DialogTitle>
+              <DialogTitle>
+                <Trans>设置</Trans>
+              </DialogTitle>
             </DialogHeader>
             <div className="space-y-3">
-              <div className="text-sm font-medium"><Trans>界面语言</Trans></div>
+              <div className="text-sm font-medium">
+                <Trans>界面语言</Trans>
+              </div>
               <div className="grid grid-cols-2 gap-2">
-                <Button type="button" variant={locale === 'zh-CN' ? 'secondary' : 'outline'} aria-pressed={locale === 'zh-CN'} onClick={() => onLocaleChange('zh-CN')}>
+                <Button
+                  type="button"
+                  variant={locale === 'zh-CN' ? 'secondary' : 'outline'}
+                  aria-pressed={locale === 'zh-CN'}
+                  onClick={() => onLocaleChange('zh-CN')}
+                >
                   <Trans>中文</Trans>
                 </Button>
-                <Button type="button" variant={locale === 'en' ? 'secondary' : 'outline'} aria-pressed={locale === 'en'} onClick={() => onLocaleChange('en')}>
+                <Button
+                  type="button"
+                  variant={locale === 'en' ? 'secondary' : 'outline'}
+                  aria-pressed={locale === 'en'}
+                  onClick={() => onLocaleChange('en')}
+                >
                   English
                 </Button>
               </div>

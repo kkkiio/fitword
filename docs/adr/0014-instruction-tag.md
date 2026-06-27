@@ -40,12 +40,12 @@
 
 ## 备选方案
 
-| 方案 | 优点 | 缺点 |
-|---|---|---|
-| 裸文本前缀（当前） | 零实现成本 | 历史消息泄漏指令 |
-| `<instruction>` tag | 简单，可过滤 | 需修改拼接和解析两处 |
-| 追加 system prompt | 不污染 user message | 影响整个 session 的后续请求 |
-| 独立 `customMessage` | 天然隔离 | pi SDK 的 `CustomAgentMessages` 需声明合并，复杂度过高 |
+| 方案                 | 优点                | 缺点                                                   |
+| -------------------- | ------------------- | ------------------------------------------------------ |
+| 裸文本前缀（当前）   | 零实现成本          | 历史消息泄漏指令                                       |
+| `<instruction>` tag  | 简单，可过滤        | 需修改拼接和解析两处                                   |
+| 追加 system prompt   | 不污染 user message | 影响整个 session 的后续请求                            |
+| 独立 `customMessage` | 天然隔离            | pi SDK 的 `CustomAgentMessages` 需声明合并，复杂度过高 |
 
 ## 后果
 

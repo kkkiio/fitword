@@ -86,7 +86,10 @@ export class FitwordWorkspacePage {
   }
 
   async startEmptyConversation(): Promise<void> {
-    await this.page.getByRole('button', { name: /新建对话/ }).first().click();
+    await this.page
+      .getByRole('button', { name: /新建对话/ })
+      .first()
+      .click();
     await expect(this.page.getByPlaceholder('输入你的消息…')).toBeVisible();
   }
 

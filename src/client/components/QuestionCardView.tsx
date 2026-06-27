@@ -59,7 +59,12 @@ export function QuestionCardView({ card, onAnswer }: { card: QuestionCard; onAns
               }
             }}
           >
-            <Input value={answer} onChange={(event) => setAnswer(event.target.value)} placeholder={t`输入你觉得最贴切的词`} disabled={Boolean(submittedAnswer)} />
+            <Input
+              value={answer}
+              onChange={(event) => setAnswer(event.target.value)}
+              placeholder={t`输入你觉得最贴切的词`}
+              disabled={Boolean(submittedAnswer)}
+            />
             <Button type="submit" disabled={Boolean(submittedAnswer)}>
               <Trans>确认答案</Trans>
             </Button>

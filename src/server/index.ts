@@ -55,14 +55,17 @@ app.get('/api/sessions/:id/events', async (context) => {
   }
 
   const { subscribeSessionEvents } = await import('./pi-agent.js');
-  return new Response(createSseStream((emit, signal) => subscribeSessionEvents(sessionId, emit, signal), context.req.raw.signal), {
-    headers: {
-      'content-type': 'text/event-stream; charset=utf-8',
-      'cache-control': 'no-cache, no-transform',
-      connection: 'keep-alive',
-      'x-accel-buffering': 'no',
+  return new Response(
+    createSseStream((emit, signal) => subscribeSessionEvents(sessionId, emit, signal), context.req.raw.signal),
+    {
+      headers: {
+        'content-type': 'text/event-stream; charset=utf-8',
+        'cache-control': 'no-cache, no-transform',
+        connection: 'keep-alive',
+        'x-accel-buffering': 'no',
+      },
     },
-  });
+  );
 });
 app.post('/api/sessions/:id/archive', async (context) => {
   const sessionId = context.req.param('id');

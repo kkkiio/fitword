@@ -39,7 +39,25 @@ Fitword 会把这三个变量作为统一的 OpenAI-compatible LLM 配置传给 
 pnpm run dev
 ```
 
+如果本机安装了 `just`，也可以使用：
+
+```bash
+just run
+```
+
 启动后访问终端输出的 localhost 地址（默认 `http://localhost:5174`）。Fitword 需要可用的模型配置才能进行对话、出题和写作评分。
+
+## 常用开发命令
+
+```bash
+just fmt
+just gen
+just check
+just test
+just e2e
+just build
+just run
+```
 
 ## 使用方式
 

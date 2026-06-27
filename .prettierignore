@@ -1,0 +1,8 @@
+node_modules
+dist
+.features-gen
+test-results
+.tmp
+coverage
+pnpm-lock.yaml
+src/locales/*/messages.ts

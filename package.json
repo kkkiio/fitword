@@ -61,6 +61,7 @@
     "concurrently": "^10.0.3",
     "jsdom": "latest",
     "playwright-bdd": "^9.2.0",
+    "prettier": "^3.9.0",
     "vite": "^6.4.3",
     "vitest": "latest"
   },

@@ -2,13 +2,7 @@ import type { ChatMessage, SessionInfo } from '../shared/types.js';
 
 export type ChatEventHandler = (data: Record<string, unknown>) => void;
 
-export async function createSession({
-  message,
-  intent,
-}: {
-  message: string;
-  intent?: 'score';
-}) {
+export async function createSession({ message, intent }: { message: string; intent?: 'score' }) {
   const response = await fetch('/api/sessions', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -19,15 +13,7 @@ export async function createSession({
   return (await response.json()) as SessionInfo;
 }
 
-export async function sendSessionMessage({
-  sessionId,
-  message,
-  intent,
-}: {
-  sessionId: string;
-  message: string;
-  intent?: 'score';
-}) {
+export async function sendSessionMessage({ sessionId, message, intent }: { sessionId: string; message: string; intent?: 'score' }) {
   const response = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/messages`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -101,15 +87,7 @@ export async function archiveSession(sessionId: string) {
   return response.json() as Promise<{ ok: boolean }>;
 }
 
-export async function submitQuestionAnswer({
-  sessionId,
-  questionId,
-  answer,
-}: {
-  sessionId: string;
-  questionId: string;
-  answer: string;
-}) {
+export async function submitQuestionAnswer({ sessionId, questionId, answer }: { sessionId: string; questionId: string; answer: string }) {
   const response = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/answer`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },

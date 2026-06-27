@@ -30,11 +30,8 @@ export function useSessions() {
   const [eventStreamRetry, setEventStreamRetry] = useState(0);
   const activeAgentMessageIds = useRef<Record<string, string>>({});
 
-  const selectedSession = useMemo(
-    () => sessions.find((s) => s.id === selectedSessionId),
-    [selectedSessionId, sessions],
-  );
-  const visibleMessages = selectedSessionId ? messagesBySession[selectedSessionId] ?? [] : [];
+  const selectedSession = useMemo(() => sessions.find((s) => s.id === selectedSessionId), [selectedSessionId, sessions]);
+  const visibleMessages = selectedSessionId ? (messagesBySession[selectedSessionId] ?? []) : [];
   const selectedMessagesLoaded = selectedSessionId ? messagesBySession[selectedSessionId] !== undefined : false;
 
   // ── Load sessions on mount ──────────────────────────────────────────
@@ -107,45 +104,37 @@ export function useSessions() {
   }, [selectedSessionId, messagesBySession]);
 
   // ── Helpers ─────────────────────────────────────────────────────────
-  const appendAgentPart = useCallback(
-    (sessionId: string, messageId: string, part: ChatMessage['parts'][number]) => {
-      setMessagesBySession((current) => {
-        const now = new Date().toISOString();
-        const messages = current[sessionId] ?? [];
-        const duplicateQuestion =
-          part.kind === 'question' &&
-          messages.some((message) =>
-            message.parts.some((existingPart) => existingPart.kind === 'question' && existingPart.card.id === part.card.id),
-          );
-        const duplicateScore =
-          part.kind === 'score' &&
-          part.card.scoring_record_id !== undefined &&
-          messages.some((message) =>
-            message.parts.some(
-              (existingPart) =>
-                existingPart.kind === 'score' && existingPart.card.scoring_record_id === part.card.scoring_record_id,
-            ),
-          );
+  const appendAgentPart = useCallback((sessionId: string, messageId: string, part: ChatMessage['parts'][number]) => {
+    setMessagesBySession((current) => {
+      const now = new Date().toISOString();
+      const messages = current[sessionId] ?? [];
+      const duplicateQuestion =
+        part.kind === 'question' &&
+        messages.some((message) =>
+          message.parts.some((existingPart) => existingPart.kind === 'question' && existingPart.card.id === part.card.id),
+        );
+      const duplicateScore =
+        part.kind === 'score' &&
+        part.card.scoring_record_id !== undefined &&
+        messages.some((message) =>
+          message.parts.some(
+            (existingPart) => existingPart.kind === 'score' && existingPart.card.scoring_record_id === part.card.scoring_record_id,
+          ),
+        );
 
-        if (duplicateQuestion || duplicateScore) {
-          return current;
-        }
+      if (duplicateQuestion || duplicateScore) {
+        return current;
+      }
 
-        const existing = messages.find((m) => m.id === messageId);
-        const nextMessages = existing
-          ? messages.map((m) => (m.id === messageId ? { ...m, parts: [...m.parts, part] } : m))
-          : [...messages, { id: messageId, role: 'agent' as const, created_at: now, parts: [part] }];
+      const existing = messages.find((m) => m.id === messageId);
+      const nextMessages = existing
+        ? messages.map((m) => (m.id === messageId ? { ...m, parts: [...m.parts, part] } : m))
+        : [...messages, { id: messageId, role: 'agent' as const, created_at: now, parts: [part] }];
 
-        return { ...current, [sessionId]: nextMessages };
-      });
-      setSessions((current) =>
-        sortByUpdated(
-          current.map((s) => (s.id === sessionId ? { ...s, updated_at: new Date().toISOString() } : s)),
-        ),
-      );
-    },
-    [],
-  );
+      return { ...current, [sessionId]: nextMessages };
+    });
+    setSessions((current) => sortByUpdated(current.map((s) => (s.id === sessionId ? { ...s, updated_at: new Date().toISOString() } : s))));
+  }, []);
 
   const appendAgentTextDelta = useCallback((sessionId: string, messageId: string, deltaText: string) => {
     if (!deltaText) return;
@@ -221,15 +210,11 @@ export function useSessions() {
         }
 
         if (data.type === 'message_end') {
-          const message = data.message as
-            | { role?: string; id?: string; stopReason?: string; errorMessage?: string }
-            | undefined;
+          const message = data.message as { role?: string; id?: string; stopReason?: string; errorMessage?: string } | undefined;
           if (message?.role === 'assistant' && message.stopReason === 'error' && message.errorMessage) {
             if (!activeAgentMessageIds.current[sessionId]) {
               activeAgentMessageIds.current[sessionId] =
-                typeof message.id === 'string'
-                  ? `agent-${message.id}`
-                  : `agent-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+                typeof message.id === 'string' ? `agent-${message.id}` : `agent-${Date.now()}-${Math.random().toString(36).slice(2)}`;
             }
             appendAgentTextDelta(sessionId, activeAgentMessageIds.current[sessionId], t`模型处理失败：${message.errorMessage}`);
           }
@@ -263,8 +248,7 @@ export function useSessions() {
 
         if (data.type === 'tool_execution_end') {
           const details = ((data.result as { details?: unknown } | undefined)?.details ?? data.details) as
-            | { card?: QuestionCard | ScoreCard }
-            | undefined;
+            { card?: QuestionCard | ScoreCard } | undefined;
           const card = details?.card;
           const toolCallId = typeof data.toolCallId === 'string' ? data.toolCallId : `tool-${Date.now()}`;
           if (card?.type === 'question') {
@@ -278,7 +262,9 @@ export function useSessions() {
         if (data.type === 'agent_end') {
           delete activeAgentMessageIds.current[sessionId];
           setIsSending(false);
-          fetchSessions().then((loadedSessions) => setSessions(sortByUpdated(loadedSessions))).catch(() => undefined);
+          fetchSessions()
+            .then((loadedSessions) => setSessions(sortByUpdated(loadedSessions)))
+            .catch(() => undefined);
         }
       },
     }).catch((error) => {
@@ -348,11 +334,10 @@ export function useSessions() {
       try {
         await submitQuestionAnswer({ sessionId: selectedSessionId, questionId, answer });
       } catch (error) {
-        appendAgentPart(
-          selectedSessionId,
-          `agent-error-${Date.now()}`,
-          { kind: 'text', text: t`出错了：${error instanceof Error ? error.message : String(error)}` },
-        );
+        appendAgentPart(selectedSessionId, `agent-error-${Date.now()}`, {
+          kind: 'text',
+          text: t`出错了：${error instanceof Error ? error.message : String(error)}`,
+        });
       }
     },
     [selectedSessionId, appendAgentPart, t],

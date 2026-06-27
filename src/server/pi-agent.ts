@@ -30,15 +30,7 @@ import {
   getStats,
 } from './db.js';
 import { FITWORD_SYSTEM_PROMPT } from './system-prompt.js';
-import type {
-  ChatMessage,
-  ChatPart,
-  KnowledgeType,
-  Quality,
-  QuestionCard,
-  ScoreCard,
-  SessionInfo,
-} from '../shared/types.js';
+import type { ChatMessage, ChatPart, KnowledgeType, Quality, QuestionCard, ScoreCard, SessionInfo } from '../shared/types.js';
 
 export type StreamEmit = (data: Record<string, unknown>) => void;
 
@@ -93,9 +85,7 @@ const maxBufferedEvents = 500;
 let fauxProvider: FauxProviderRegistration | undefined;
 const configuredQuestionTimeoutMs = Number.parseInt(process.env.FITWORD_QUESTION_TIMEOUT_MS ?? '', 10);
 const questionAnswerTimeoutMs =
-  Number.isFinite(configuredQuestionTimeoutMs) && configuredQuestionTimeoutMs > 0
-    ? configuredQuestionTimeoutMs
-    : 15 * 60 * 1000;
+  Number.isFinite(configuredQuestionTimeoutMs) && configuredQuestionTimeoutMs > 0 ? configuredQuestionTimeoutMs : 15 * 60 * 1000;
 
 function getRequiredLlmConfig(): FitwordLlmConfig {
   const configuredProvider = process.env.FITWORD_LLM_PROVIDER?.trim() || 'openai-compatible';
@@ -478,7 +468,9 @@ function setFauxResponsesForTurn(message: string, intent: 'score' | undefined) {
       );
     },
     fauxAssistantMessage([
-      fauxText(wantsFillQuestion ? '“统筹”能表达主动协调多个团队的动作，比泛泛地说“处理进度”更具体。' : '这道题考察项目汇报中更准确的动作动词。'),
+      fauxText(
+        wantsFillQuestion ? '“统筹”能表达主动协调多个团队的动作，比泛泛地说“处理进度”更具体。' : '这道题考察项目汇报中更准确的动作动词。',
+      ),
     ]),
   ]);
 }
@@ -598,12 +590,7 @@ async function getPiSession(state: ManagedPiSession) {
   return session;
 }
 
-async function runSessionTurn(
-  session: SessionInfo,
-  message: string,
-  intent: 'score' | undefined,
-  signal?: AbortSignal,
-) {
+async function runSessionTurn(session: SessionInfo, message: string, intent: 'score' | undefined, signal?: AbortSignal) {
   const state = getManagedState(session.id);
   if (signal?.aborted) {
     throw new Error('请求已取消。');
@@ -630,7 +617,8 @@ async function runSessionTurn(
       };
       signal?.addEventListener('abort', abortCurrentTurn, { once: true });
 
-      const prompt = intent === 'score' ? `<instruction>用户请求写作评分，请评分并调用 evaluate_writing 工具保存。</instruction>\n${message}` : message;
+      const prompt =
+        intent === 'score' ? `<instruction>用户请求写作评分，请评分并调用 evaluate_writing 工具保存。</instruction>\n${message}` : message;
       if (state.llmProvider === 'faux') {
         setFauxResponsesForTurn(message, intent);
       }
@@ -779,7 +767,7 @@ export function resolveQuestionAnswer(sessionId: string, questionId: string, ans
   const text = answer.trim();
   const normalized =
     card.format === 'choice' && /^[A-D]$/i.test(text)
-      ? card.candidates?.[['A', 'B', 'C', 'D'].indexOf(text.toUpperCase())] ?? text
+      ? (card.candidates?.[['A', 'B', 'C', 'D'].indexOf(text.toUpperCase())] ?? text)
       : text;
   const result =
     card.format === 'choice'
@@ -823,7 +811,10 @@ export function readSessionMessages(sessionId: string) {
   }
 
   const messages: ChatMessage[] = [];
-  const lines = fs.readFileSync(sessionFile, 'utf8').split('\n').filter((line) => line.trim());
+  const lines = fs
+    .readFileSync(sessionFile, 'utf8')
+    .split('\n')
+    .filter((line) => line.trim());
 
   for (const line of lines) {
     let entry: any;

@@ -104,6 +104,7 @@ Web UI (React) ↔ Server (local) ↔ pi SDK Agent ↔ LLM API
 
 - Node.js >= 22.19.0
 - pnpm 10.34.4, managed through Corepack
+- just, when using the convenience commands in `justfile`
 
 ### Install
 
@@ -119,6 +120,12 @@ pnpm install
 pnpm run dev
 ```
 
+or:
+
+```bash
+just run
+```
+
 ### Validate
 
 ```bash
@@ -129,3 +136,23 @@ pnpm run i18n:extract
 ```
 
 `pnpm run test:e2e` uses `FITWORD_LLM_PROVIDER=faux` for BDD scenarios that need model behavior. The faux provider is Pi's official test provider and still exercises Pi SDK sessions, tool calls, SSE events, and jsonl persistence. Real model runs use `FITWORD_LLM_PROVIDER=openai-compatible` with `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `OPENAI_MODEL`.
+
+### Convenience Commands
+
+```bash
+just fmt
+just gen
+just check
+just test
+just e2e
+just build
+just run
+```
+
+- `just fmt`: format repository files with Prettier.
+- `just gen`: refresh Lingui catalogs and generated BDD files.
+- `just check`: run fast static checks: typecheck, Prettier check, and `git diff --check`.
+- `just test`: run unit tests.
+- `just e2e`: run Playwright BDD e2e tests.
+- `just build`: run the production Vite build.
+- `just run`: start the local dev server.

@@ -14,43 +14,43 @@ Schema 定义文件：`db/schema.sql`。运行时由 `db.ts` 读取并执行。
 
 ### questions — 题目表
 
-| 列 | 类型 | 说明 |
-|---|---|---|
-| id | INTEGER PRIMARY KEY | 自增主键 |
-| format | TEXT NOT NULL | `"choice"` / `"fill"` |
-| knowledge_type | TEXT NOT NULL | `"noun"` / `"verb"` / `"adjective"` / `"logic"` / `"domain"` |
-| question_text | TEXT NOT NULL | 题目文本，含 `____` 占位符 |
-| candidates | TEXT | 选择题候选词 JSON 数组。填空题 NULL |
-| correct_answer | TEXT | 选择题正确答案。填空题 NULL |
-| topic_tag | TEXT | 可选话题标签 |
-| created_at | TEXT NOT NULL | ISO 8601 |
+| 列             | 类型                | 说明                                                         |
+| -------------- | ------------------- | ------------------------------------------------------------ |
+| id             | INTEGER PRIMARY KEY | 自增主键                                                     |
+| format         | TEXT NOT NULL       | `"choice"` / `"fill"`                                        |
+| knowledge_type | TEXT NOT NULL       | `"noun"` / `"verb"` / `"adjective"` / `"logic"` / `"domain"` |
+| question_text  | TEXT NOT NULL       | 题目文本，含 `____` 占位符                                   |
+| candidates     | TEXT                | 选择题候选词 JSON 数组。填空题 NULL                          |
+| correct_answer | TEXT                | 选择题正确答案。填空题 NULL                                  |
+| topic_tag      | TEXT                | 可选话题标签                                                 |
+| created_at     | TEXT NOT NULL       | ISO 8601                                                     |
 
 ### answers — 答题记录表
 
-| 列 | 类型 | 说明 |
-|---|---|---|
-| id | INTEGER PRIMARY KEY | 自增主键 |
-| question_id | INTEGER NOT NULL | 外键 → `questions.id` |
-| user_answer | TEXT NOT NULL | 用户输入的答案 |
-| quality | INTEGER NOT NULL CHECK (quality IN (0, 1, 2)) | 0 不可用 / 1 可用但不佳 / 2 好；选择题只产生 0 或 2 |
-| created_at | TEXT NOT NULL | ISO 8601 |
+| 列          | 类型                                          | 说明                                                |
+| ----------- | --------------------------------------------- | --------------------------------------------------- |
+| id          | INTEGER PRIMARY KEY                           | 自增主键                                            |
+| question_id | INTEGER NOT NULL                              | 外键 → `questions.id`                               |
+| user_answer | TEXT NOT NULL                                 | 用户输入的答案                                      |
+| quality     | INTEGER NOT NULL CHECK (quality IN (0, 1, 2)) | 0 不可用 / 1 可用但不佳 / 2 好；选择题只产生 0 或 2 |
+| created_at  | TEXT NOT NULL                                 | ISO 8601                                            |
 
 ### scoring_records — 写作评分记录表
 
-| 列 | 类型 | 说明 |
-|---|---|---|
-| id | INTEGER PRIMARY KEY | 自增主键 |
-| original_text | TEXT NOT NULL | 用户提交的原文 |
-| total_score | INTEGER NOT NULL | 总分 1-5 |
-| accuracy | INTEGER NOT NULL | 准确度 1-5 |
-| specificity | INTEGER NOT NULL | 具体度 1-5 |
-| naturalness | INTEGER NOT NULL | 自然度 1-5 |
-| structure | INTEGER NOT NULL | 结构 1-5 |
-| register | INTEGER NOT NULL | 语域 1-5 |
-| main_issues | TEXT NOT NULL | 主要问题描述 |
-| suggestions | TEXT NOT NULL | 可替换词建议 JSON 数组 |
-| rewrite | TEXT NOT NULL | 改写版本 |
-| created_at | TEXT NOT NULL | ISO 8601 |
+| 列            | 类型                | 说明                   |
+| ------------- | ------------------- | ---------------------- |
+| id            | INTEGER PRIMARY KEY | 自增主键               |
+| original_text | TEXT NOT NULL       | 用户提交的原文         |
+| total_score   | INTEGER NOT NULL    | 总分 1-5               |
+| accuracy      | INTEGER NOT NULL    | 准确度 1-5             |
+| specificity   | INTEGER NOT NULL    | 具体度 1-5             |
+| naturalness   | INTEGER NOT NULL    | 自然度 1-5             |
+| structure     | INTEGER NOT NULL    | 结构 1-5               |
+| register      | INTEGER NOT NULL    | 语域 1-5               |
+| main_issues   | TEXT NOT NULL       | 主要问题描述           |
+| suggestions   | TEXT NOT NULL       | 可替换词建议 JSON 数组 |
+| rewrite       | TEXT NOT NULL       | 改写版本               |
+| created_at    | TEXT NOT NULL       | ISO 8601               |
 
 ### 查询
 
@@ -126,15 +126,16 @@ FROM scoring_records;
 
 ### sessions — 会话元数据表
 
-| 列 | 类型 | 说明 |
-|---|---|---|
-| id | TEXT PRIMARY KEY | UUID |
-| title | TEXT NOT NULL | 首条消息前 20 字符 |
-| status | TEXT NOT NULL DEFAULT 'active' | 'active' / 'archived' |
-| created_at | TEXT NOT NULL | ISO 8601 |
-| updated_at | TEXT NOT NULL | 最后活跃时间 |
+| 列         | 类型                           | 说明                  |
+| ---------- | ------------------------------ | --------------------- |
+| id         | TEXT PRIMARY KEY               | UUID                  |
+| title      | TEXT NOT NULL                  | 首条消息前 20 字符    |
+| status     | TEXT NOT NULL DEFAULT 'active' | 'active' / 'archived' |
+| created_at | TEXT NOT NULL                  | ISO 8601              |
+| updated_at | TEXT NOT NULL                  | 最后活跃时间          |
 
 查询未归档：
+
 ```sql
 SELECT * FROM sessions WHERE status = 'active' ORDER BY updated_at DESC;
 ```

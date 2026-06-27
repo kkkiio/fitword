@@ -9,6 +9,7 @@ fitword 需要 Agent 能力：管理 LLM 对话、处理工具调用、持久化
 使用 **pi SDK**（`@earendil-works/pi-agent-core`）作为 Agent 运行框架。
 
 核心依赖：
+
 - `createAgentSession`：创建和管理 Agent 会话
 - `SessionManager`：对话历史持久化（jsonl）
 - `ModelRegistry`：多 provider 支持，用户自行配置 API key
@@ -16,11 +17,11 @@ fitword 需要 Agent 能力：管理 LLM 对话、处理工具调用、持久化
 
 ## 备选方案
 
-| 方案 | 优点 | 缺点 |
-|---|---|---|
-| pi SDK | 完整 Agent harness，session 管理、工具系统、stream 处理开箱即用；与 roundtable 同源 | 依赖 pi SDK 的版本节奏 |
-| Vercel AI SDK | 社区活跃，文档丰富 | 偏向无状态 API 调用，Agent harness 需要自己搭 |
-| 从零实现 | 完全可控 | v0.1 需重复实现 agent loop、tool dispatch、session persistence |
+| 方案          | 优点                                                                                | 缺点                                                           |
+| ------------- | ----------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| pi SDK        | 完整 Agent harness，session 管理、工具系统、stream 处理开箱即用；与 roundtable 同源 | 依赖 pi SDK 的版本节奏                                         |
+| Vercel AI SDK | 社区活跃，文档丰富                                                                  | 偏向无状态 API 调用，Agent harness 需要自己搭                  |
+| 从零实现      | 完全可控                                                                            | v0.1 需重复实现 agent loop、tool dispatch、session persistence |
 
 ## 后果
 

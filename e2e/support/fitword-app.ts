@@ -36,7 +36,12 @@ export class FitwordE2eApp {
 
     this.mode = mode;
     this.startPromise = (async () => {
-      const scenarioName = this.testInfo.titlePath.join(' ').replaceAll(/[^a-zA-Z0-9._-]+/g, '-').replaceAll(/^-+|-+$/g, '').toLowerCase().slice(0, 80);
+      const scenarioName = this.testInfo.titlePath
+        .join(' ')
+        .replaceAll(/[^a-zA-Z0-9._-]+/g, '-')
+        .replaceAll(/^-+|-+$/g, '')
+        .toLowerCase()
+        .slice(0, 80);
       this.scenarioRoot = path.resolve(process.cwd(), '.tmp', 'e2e', `${this.testInfo.workerIndex}-${Date.now()}-${scenarioName}`);
       this.dbPath = path.join(this.scenarioRoot, 'fitword.db');
       await rm(this.scenarioRoot, { recursive: true, force: true });
@@ -66,9 +71,7 @@ export class FitwordE2eApp {
         ...(mode === 'local'
           ? { FITWORD_LLM_PROVIDER: 'openai-compatible', OPENAI_API_KEY: '', OPENAI_BASE_URL: '', OPENAI_MODEL: '' }
           : {}),
-        ...(mode === 'faux'
-          ? { FITWORD_LLM_PROVIDER: 'faux', OPENAI_API_KEY: '', OPENAI_BASE_URL: '', OPENAI_MODEL: '' }
-          : {}),
+        ...(mode === 'faux' ? { FITWORD_LLM_PROVIDER: 'faux', OPENAI_API_KEY: '', OPENAI_BASE_URL: '', OPENAI_MODEL: '' } : {}),
         ...(mode === 'real-llm' ? { FITWORD_LLM_PROVIDER: 'openai-compatible' } : {}),
       };
       const child = spawn(process.execPath, [path.resolve(process.cwd(), 'node_modules/tsx/dist/cli.mjs'), 'src/server/index.ts'], {
