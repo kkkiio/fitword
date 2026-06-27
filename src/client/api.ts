@@ -2,27 +2,56 @@ import type { ChatMessage, SessionInfo } from '../shared/types.js';
 
 export type ChatEventHandler = (data: Record<string, unknown>) => void;
 
-export async function streamChatEvents({
+export async function createSession({
   message,
   intent,
-  sessionId,
-  onEvent,
-  onSessionId,
 }: {
   message: string;
   intent?: 'score';
-  sessionId?: string;
-  onEvent: ChatEventHandler;
-  onSessionId?: (sessionId: string) => void;
 }) {
-  const response = await fetch('/api/chat/stream', {
+  const response = await fetch('/api/sessions', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ message, intent, sessionId }),
+    body: JSON.stringify({ message, intent }),
   });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  const responseSessionId = response.headers.get('x-fitword-session-id');
-  if (responseSessionId) onSessionId?.(responseSessionId);
+
+  return (await response.json()) as SessionInfo;
+}
+
+export async function sendSessionMessage({
+  sessionId,
+  message,
+  intent,
+}: {
+  sessionId: string;
+  message: string;
+  intent?: 'score';
+}) {
+  const response = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/messages`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ message, intent }),
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+  return (await response.json()) as { ok: boolean; session: SessionInfo };
+}
+
+export async function subscribeSessionEvents({
+  sessionId,
+  signal,
+  onEvent,
+}: {
+  sessionId: string;
+  signal: AbortSignal;
+  onEvent: ChatEventHandler;
+}) {
+  const response = await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/events`, {
+    headers: { accept: 'text/event-stream' },
+    signal,
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
   if (!response.body) throw new Error('当前浏览器不支持流式响应');
 
   const reader = response.body.getReader();

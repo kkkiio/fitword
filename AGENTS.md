@@ -70,6 +70,8 @@ fitword/
 │   ├── client/                        # React UI and Lingui setup
 │   ├── locales/                       # Lingui message catalogs
 │   └── server/                        # Hono server, storage, pi SDK agent tools
+├── pnpm-lock.yaml                     # pnpm dependency lockfile
+├── pnpm-workspace.yaml                # pnpm project-level settings
 ├── lingui.config.ts                   # Lingui catalog config
 └── playwright.config.ts               # playwright-bdd test config
 ```
@@ -94,28 +96,30 @@ Web UI (React) ↔ Server (local) ↔ pi SDK Agent ↔ LLM API
 
 ### Prerequisites
 
-- Node.js >= 20.6
-- npm
+- Node.js >= 22.19.0
+- pnpm 10.34.4, managed through Corepack
 
 ### Install
 
 ```bash
-npm install
+corepack enable
+corepack prepare pnpm@10.34.4 --activate
+pnpm install
 ```
 
 ### Run
 
 ```bash
-npm run dev
+pnpm run dev
 ```
 
 ### Validate
 
 ```bash
-npm run typecheck
-npm run test
-npm run test:e2e
-npm run i18n:extract
+pnpm run typecheck
+pnpm run test
+pnpm run test:e2e
+pnpm run i18n:extract
 ```
 
-`npm run test:e2e` includes an online writing-scoring BDD scenario backed by the configured model service. It is enabled only when `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `OPENAI_MODEL` are present in `.env` or the environment; otherwise it skips.
+`pnpm run test:e2e` includes an online writing-scoring BDD scenario backed by the configured model service. It is enabled only when `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `OPENAI_MODEL` are present in `.env` or the environment; otherwise it skips.

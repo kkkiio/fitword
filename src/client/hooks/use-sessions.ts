@@ -1,11 +1,13 @@
 import { useLingui } from '@lingui/react/macro';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ChatMessage, QuestionCard, ScoreCard, SessionInfo } from '../../shared/types.js';
 import {
   archiveSession as archiveSessionRequest,
+  createSession,
   fetchSessionMessages,
   fetchSessions,
-  streamChatEvents,
+  sendSessionMessage as sendSessionMessageRequest,
+  subscribeSessionEvents,
   submitQuestionAnswer,
 } from '../api';
 import type { ChatSession } from '../types';
@@ -25,12 +27,14 @@ export function useSessions() {
   const [input, setInput] = useState('');
   const [scoreMode, setScoreMode] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const activeAgentMessageIds = useRef<Record<string, string>>({});
 
   const selectedSession = useMemo(
     () => sessions.find((s) => s.id === selectedSessionId),
     [selectedSessionId, sessions],
   );
   const visibleMessages = selectedSessionId ? messagesBySession[selectedSessionId] ?? [] : [];
+  const selectedMessagesLoaded = selectedSessionId ? messagesBySession[selectedSessionId] !== undefined : false;
 
   // ── Load sessions on mount ──────────────────────────────────────────
   useEffect(() => {
@@ -89,11 +93,11 @@ export function useSessions() {
     fetchSessionMessages(selectedSessionId)
       .then((messages) => {
         if (!alive) return;
-        setMessagesBySession((cur) => ({ ...cur, [selectedSessionId]: messages }));
+        setMessagesBySession((cur) => (cur[selectedSessionId] === undefined ? { ...cur, [selectedSessionId]: messages } : cur));
       })
       .catch(() => {
         if (!alive) return;
-        setMessagesBySession((cur) => ({ ...cur, [selectedSessionId]: [] }));
+        setMessagesBySession((cur) => (cur[selectedSessionId] === undefined ? { ...cur, [selectedSessionId]: [] } : cur));
       });
 
     return () => {
@@ -107,6 +111,25 @@ export function useSessions() {
       setMessagesBySession((current) => {
         const now = new Date().toISOString();
         const messages = current[sessionId] ?? [];
+        const duplicateQuestion =
+          part.kind === 'question' &&
+          messages.some((message) =>
+            message.parts.some((existingPart) => existingPart.kind === 'question' && existingPart.card.id === part.card.id),
+          );
+        const duplicateScore =
+          part.kind === 'score' &&
+          part.card.scoring_record_id !== undefined &&
+          messages.some((message) =>
+            message.parts.some(
+              (existingPart) =>
+                existingPart.kind === 'score' && existingPart.card.scoring_record_id === part.card.scoring_record_id,
+            ),
+          );
+
+        if (duplicateQuestion || duplicateScore) {
+          return current;
+        }
+
         const existing = messages.find((m) => m.id === messageId);
         const nextMessages = existing
           ? messages.map((m) => (m.id === messageId ? { ...m, parts: [...m.parts, part] } : m))
@@ -123,14 +146,149 @@ export function useSessions() {
     [],
   );
 
+  const appendAgentTextDelta = useCallback((sessionId: string, messageId: string, deltaText: string) => {
+    if (!deltaText) return;
+
+    setMessagesBySession((current) => {
+      const now = new Date().toISOString();
+      const messages = current[sessionId] ?? [];
+      const existing = messages.find((m) => m.id === messageId);
+      const nextMessages = existing
+        ? messages.map((m) => {
+            if (m.id !== messageId) return m;
+            const last = m.parts[m.parts.length - 1];
+            if (last?.kind === 'text') {
+              return {
+                ...m,
+                parts: [...m.parts.slice(0, -1), { ...last, text: `${last.text}${deltaText}` }],
+              };
+            }
+
+            return { ...m, parts: [...m.parts, { kind: 'text' as const, text: deltaText }] };
+          })
+        : [
+            ...messages,
+            {
+              id: messageId,
+              role: 'agent' as const,
+              created_at: now,
+              parts: [{ kind: 'text' as const, text: deltaText }],
+            },
+          ];
+
+      return { ...current, [sessionId]: nextMessages };
+    });
+  }, []);
+
+  // ── Subscribe to selected session events ────────────────────────────
+  useEffect(() => {
+    if (!selectedSessionId || !selectedMessagesLoaded) {
+      return;
+    }
+
+    const sessionId = selectedSessionId;
+    const abortController = new AbortController();
+    let alive = true;
+
+    subscribeSessionEvents({
+      sessionId,
+      signal: abortController.signal,
+      onEvent(data) {
+        if (!alive) return;
+
+        if (data.type === 'agent_start' || data.type === 'turn_start') {
+          setIsSending(true);
+        }
+
+        if (data.type === 'message_start') {
+          const message = data.message as { role?: string; id?: string } | undefined;
+          if (message?.role === 'assistant') {
+            activeAgentMessageIds.current[sessionId] =
+              typeof message.id === 'string' ? `agent-${message.id}` : `agent-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+          }
+        }
+
+        if (data.type === 'message_update') {
+          const assistantEvent = data.assistantMessageEvent as { type?: string; delta?: string } | undefined;
+          if (assistantEvent?.type !== 'text_delta') return;
+          const deltaText = String(assistantEvent.delta ?? '');
+          if (!activeAgentMessageIds.current[sessionId]) {
+            activeAgentMessageIds.current[sessionId] = `agent-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+          }
+          appendAgentTextDelta(sessionId, activeAgentMessageIds.current[sessionId], deltaText);
+        }
+
+        if (data.type === 'tool_execution_start' && data.toolName === 'ask_question') {
+          const args = (data.args ?? {}) as Partial<QuestionCard>;
+          const toolCallId = typeof data.toolCallId === 'string' ? data.toolCallId : `tool-${Date.now()}`;
+          const knowledgeTypes = ['noun', 'verb', 'adjective', 'logic', 'domain'];
+          const knowledgeType = knowledgeTypes.includes(String(args.knowledge_type)) ? args.knowledge_type : undefined;
+          const candidates = Array.isArray(args.candidates)
+            ? args.candidates.filter((candidate): candidate is string => typeof candidate === 'string')
+            : undefined;
+
+          if ((args.format === 'choice' || args.format === 'fill') && typeof args.question === 'string' && knowledgeType) {
+            appendAgentPart(sessionId, `tool-${toolCallId}`, {
+              kind: 'question',
+              card: {
+                type: 'question',
+                id: toolCallId,
+                format: args.format,
+                question: args.question,
+                knowledge_type: knowledgeType,
+                topic_tag: typeof args.topic_tag === 'string' ? args.topic_tag : undefined,
+                candidates: args.format === 'choice' ? candidates : undefined,
+                correct: args.format === 'choice' && typeof args.correct === 'string' ? args.correct : undefined,
+              },
+            });
+          }
+        }
+
+        if (data.type === 'tool_execution_end') {
+          const details = ((data.result as { details?: unknown } | undefined)?.details ?? data.details) as
+            | { card?: QuestionCard | ScoreCard }
+            | undefined;
+          const card = details?.card;
+          const toolCallId = typeof data.toolCallId === 'string' ? data.toolCallId : `tool-${Date.now()}`;
+          if (card?.type === 'question') {
+            appendAgentPart(sessionId, `tool-${toolCallId}`, { kind: 'question', card });
+          }
+          if (card?.type === 'score') {
+            appendAgentPart(sessionId, `tool-${toolCallId}`, { kind: 'score', card });
+          }
+        }
+
+        if (data.type === 'agent_end') {
+          delete activeAgentMessageIds.current[sessionId];
+          setIsSending(false);
+          fetchSessions().then((loadedSessions) => setSessions(sortByUpdated(loadedSessions))).catch(() => undefined);
+        }
+      },
+    }).catch((error) => {
+      if (!alive || abortController.signal.aborted) return;
+      setIsSending(false);
+      appendAgentPart(sessionId, `agent-error-${Date.now()}`, {
+        kind: 'text',
+        text: t`出错了：${error instanceof Error ? error.message : String(error)}`,
+      });
+    });
+
+    return () => {
+      alive = false;
+      abortController.abort();
+    };
+  }, [selectedSessionId, selectedMessagesLoaded, appendAgentPart, appendAgentTextDelta, t]);
+
   const startEmptyConversation = useCallback(() => {
     setSelectedSessionId(undefined);
     setInput('');
     setScoreMode(false);
+    setIsSending(false);
   }, []);
 
   const selectSession = useCallback((sessionId: string) => {
     setSelectedSessionId(sessionId);
+    setIsSending(false);
   }, []);
 
   const archiveConversation = useCallback(
@@ -149,7 +307,10 @@ export function useSessions() {
       });
 
       if (selectedSessionId === sessionId) {
-        setSelectedSessionId(remaining[0]?.id);
+        setSelectedSessionId(undefined);
+        setInput('');
+        setScoreMode(false);
+        setIsSending(false);
       }
     },
     [sessions, selectedSessionId, t],
@@ -175,110 +336,53 @@ export function useSessions() {
   const send = useCallback(
     async (message = input) => {
       const text = message.trim();
-      if (!text || isSending) return;
+      if (!text || isSending || (selectedSessionId && !selectedMessagesLoaded)) return;
 
       const outgoingSessionId = selectedSessionId;
       const outgoingIntent = scoreMode ? 'score' : undefined;
-      const assistantId = `agent-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      let targetSessionId = outgoingSessionId;
-      let assistantStarted = false;
+      const now = new Date().toISOString();
+      const userMessage: ChatMessage = {
+        id: `user-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        role: 'user',
+        created_at: now,
+        parts: [{ kind: 'text', text }],
+      };
 
       setInput('');
       setScoreMode(false);
       setIsSending(true);
 
       try {
-        await streamChatEvents({
-          message: text,
-          intent: outgoingIntent,
-          sessionId: outgoingSessionId,
-          onSessionId(sessionId) {
-            targetSessionId = sessionId;
-            setSelectedSessionId(sessionId);
-            const now = new Date().toISOString();
-            const userMessage: ChatMessage = {
-              id: `user-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-              role: 'user',
-              created_at: now,
-              parts: [{ kind: 'text', text }],
-            };
-            setMessagesBySession((current) => {
-              const messages = current[sessionId] ?? [];
-              return { ...current, [sessionId]: [...messages, userMessage] };
-            });
-            fetchSessions().then((loadedSessions) => setSessions(sortByUpdated(loadedSessions))).catch(() => undefined);
-          },
-          onEvent(data) {
-            if (!targetSessionId) return;
-
-            if (data.type === 'message_update') {
-              const assistantEvent = data.assistantMessageEvent as { type?: string; delta?: string } | undefined;
-              if (assistantEvent?.type !== 'text_delta') return;
-              const deltaText = String(assistantEvent.delta ?? '');
-              assistantStarted = true;
-              setMessagesBySession((current) => {
-                const now = new Date().toISOString();
-                const messages = current[targetSessionId!] ?? [];
-                const existing = messages.find((m) => m.id === assistantId);
-                const nextMessages = existing
-                  ? messages.map((m) => {
-                      if (m.id !== assistantId) return m;
-                      const last = m.parts[m.parts.length - 1];
-                      if (last?.kind === 'text') {
-                        return {
-                          ...m,
-                          parts: [...m.parts.slice(0, -1), { ...last, text: `${last.text}${deltaText}` }],
-                        };
-                      }
-                      return { ...m, parts: [...m.parts, { kind: 'text' as const, text: deltaText }] };
-                    })
-                  : [
-                      ...messages,
-                      {
-                        id: assistantId,
-                        role: 'agent' as const,
-                        created_at: now,
-                        parts: [{ kind: 'text' as const, text: deltaText }],
-                      },
-                    ];
-                return { ...current, [targetSessionId!]: nextMessages };
-              });
-            }
-
-            if (data.type === 'tool_execution_end') {
-              const details = (data.details ?? (data.result as { details?: unknown } | undefined)?.details) as
-                | { card?: QuestionCard | ScoreCard }
-                | undefined;
-              const card = details?.card;
-              if (card?.type === 'question') {
-                assistantStarted = true;
-                appendAgentPart(targetSessionId, assistantId, { kind: 'question', card });
-              }
-              if (card?.type === 'score') {
-                assistantStarted = true;
-                appendAgentPart(targetSessionId, assistantId, { kind: 'score', card });
-              }
-            }
-          },
-        });
+        if (outgoingSessionId) {
+          setMessagesBySession((current) => {
+            const messages = current[outgoingSessionId] ?? [];
+            return { ...current, [outgoingSessionId]: [...messages, userMessage] };
+          });
+          const result = await sendSessionMessageRequest({ sessionId: outgoingSessionId, message: text, intent: outgoingIntent });
+          if (result.session) {
+            setSessions((current) =>
+              sortByUpdated(current.map((session) => (session.id === outgoingSessionId ? result.session : session))),
+            );
+          }
+        } else {
+          const session = await createSession({ message: text, intent: outgoingIntent });
+          setSessions((current) => sortByUpdated([session, ...current.filter((item) => item.id !== session.id)]));
+          setMessagesBySession((current) => ({ ...current, [session.id]: [userMessage] }));
+          setSelectedSessionId(session.id);
+        }
       } catch (error) {
-        if (targetSessionId) {
-          appendAgentPart(targetSessionId, assistantId, {
+        setIsSending(false);
+        if (outgoingSessionId) {
+          appendAgentPart(outgoingSessionId, `agent-error-${Date.now()}`, {
             kind: 'text',
             text: t`出错了：${error instanceof Error ? error.message : String(error)}`,
           });
+        } else {
+          setInput(text);
         }
-      } finally {
-        if (targetSessionId) {
-          const now = new Date().toISOString();
-          setSessions((current) =>
-            sortByUpdated(current.map((s) => (s.id === targetSessionId ? { ...s, updated_at: now } : s))),
-          );
-        }
-        setIsSending(false);
       }
     },
-    [input, isSending, selectedSessionId, scoreMode, appendAgentPart, t],
+    [input, isSending, selectedSessionId, selectedMessagesLoaded, scoreMode, appendAgentPart, t],
   );
 
   return {

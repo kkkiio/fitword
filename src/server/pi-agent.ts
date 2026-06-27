@@ -47,7 +47,9 @@ interface ManagedPiSession {
   id: string;
   queue: Promise<void>;
   lastUsed: number;
-  emit?: StreamEmit;
+  isRunning: boolean;
+  subscribers: Set<StreamEmit>;
+  eventBuffer: Record<string, unknown>[];
   session?: PiSession;
   sessionPromise?: Promise<PiSession>;
   unsubscribe?: () => void;
@@ -58,6 +60,7 @@ interface ManagedPiSession {
 const openAICompatibleProvider = 'fitword-openai-compatible';
 const sessionCache = new Map<string, ManagedPiSession>();
 const maxCachedAgents = 10;
+const maxBufferedEvents = 500;
 const configuredQuestionTimeoutMs = Number.parseInt(process.env.FITWORD_QUESTION_TIMEOUT_MS ?? '', 10);
 const questionAnswerTimeoutMs =
   Number.isFinite(configuredQuestionTimeoutMs) && configuredQuestionTimeoutMs > 0
@@ -122,6 +125,9 @@ function getManagedState(sessionId: string) {
     id: sessionId,
     queue: Promise.resolve(),
     lastUsed: Date.now(),
+    isRunning: false,
+    subscribers: new Set(),
+    eventBuffer: [],
   };
 
   sessionCache.set(sessionId, state);
@@ -206,10 +212,10 @@ function createFitwordTools(state: ManagedPiSession) {
       candidates: Type.Optional(Type.Array(Type.String())),
       correct: Type.Optional(Type.String()),
     }),
-    execute: async (_toolCallId, params, signal) => {
+    execute: async (toolCallId, params, signal) => {
       const card: QuestionCard = {
         type: 'question',
-        id: randomUUID(),
+        id: toolCallId,
         format: params.format,
         question: params.question,
         knowledge_type: params.knowledge_type,
@@ -222,7 +228,7 @@ function createFitwordTools(state: ManagedPiSession) {
         throw new Error('选择题必须提供 candidates 和 correct。');
       }
 
-          const result = await waitForQuestionAnswer(state, card, signal);
+      const result = await waitForQuestionAnswer(state, card, signal);
 
       return {
         content: [{ type: 'text', text: JSON.stringify(result) }],
@@ -406,12 +412,19 @@ async function getPiSession(state: ManagedPiSession) {
 
   if (!state.unsubscribe) {
     state.unsubscribe = session.subscribe((event: any) => {
-      state.emit?.(event as Record<string, unknown>);
+      const payload = event as Record<string, unknown>;
+      state.eventBuffer.push(payload);
+      if (state.eventBuffer.length > maxBufferedEvents) {
+        state.eventBuffer.splice(0, state.eventBuffer.length - maxBufferedEvents);
+      }
+      for (const emit of state.subscribers) {
+        emit(payload);
+      }
     });
   }
 
   const cachedStates = [...sessionCache.values()]
-    .filter((cached) => cached.session && !cached.pendingQuestion && !cached.emit && cached.id !== state.id)
+    .filter((cached) => cached.session && !cached.pendingQuestion && cached.subscribers.size === 0 && cached.id !== state.id)
     .sort((a, b) => a.lastUsed - b.lastUsed);
   while ([...sessionCache.values()].filter((cached) => cached.session).length > maxCachedAgents && cachedStates.length > 0) {
     const stale = cachedStates.shift();
@@ -431,7 +444,6 @@ async function runSessionTurn(
   session: SessionInfo,
   message: string,
   intent: 'score' | undefined,
-  emit: StreamEmit,
   signal?: AbortSignal,
 ) {
   const state = getManagedState(session.id);
@@ -439,7 +451,8 @@ async function runSessionTurn(
     throw new Error('请求已取消。');
   }
 
-  state.emit = emit;
+  state.isRunning = true;
+  state.eventBuffer = [];
   state.lastUsed = Date.now();
 
   try {
@@ -466,12 +479,15 @@ async function runSessionTurn(
       }
     }
   } finally {
-    state.emit = undefined;
+    state.isRunning = false;
+    if (state.subscribers.size > 0 && !state.pendingQuestion) {
+      state.eventBuffer = [];
+    }
     touchSession(session.id);
   }
 }
 
-export function prepareChatSession(input: { sessionId?: string; message: string }) {
+export function createSessionAndSendMessage(input: { message: string; intent?: 'score' }) {
   const text = input.message.trim();
 
   if (!text) {
@@ -480,27 +496,80 @@ export function prepareChatSession(input: { sessionId?: string; message: string 
 
   getRequiredLlmConfig();
 
-  const session = input.sessionId ? getSession(input.sessionId) : createSessionFromFirstMessage(text);
-  if (!session || session.status !== 'active') {
-    throw new Error('会话不存在或已归档。');
-  }
+  const session = createSessionFromFirstMessage(text);
+  const state = getManagedState(session.id);
+  const previous = state.queue.catch(() => undefined);
+  const run = previous.then(() => runSessionTurn(session, text, input.intent));
+  state.queue = run.catch((error) => {
+    console.error(error);
+  });
 
   return session;
 }
 
-export async function streamChat(input: { sessionId?: string; message: string; intent?: 'score' }, emit: StreamEmit, signal?: AbortSignal) {
+export function sendSessionMessage(input: { sessionId: string; message: string; intent?: 'score' }) {
   const text = input.message.trim();
 
   if (!text) {
     throw new Error('消息不能为空。');
   }
 
-  const session = prepareChatSession({ sessionId: input.sessionId, message: text });
+  getRequiredLlmConfig();
+
+  const session = getSession(input.sessionId);
+  if (!session || session.status !== 'active') {
+    throw new Error('会话不存在或已归档。');
+  }
+
   const state = getManagedState(session.id);
   const previous = state.queue.catch(() => undefined);
-  const run = previous.then(() => runSessionTurn(session, text, input.intent, emit, signal));
-  state.queue = run.catch(() => undefined);
-  await run;
+  const run = previous.then(() => runSessionTurn(session, text, input.intent));
+  state.queue = run.catch((error) => {
+    console.error(error);
+  });
+
+  return {
+    ok: true,
+    session: touchSession(session.id) ?? session,
+  };
+}
+
+export async function subscribeSessionEvents(sessionId: string, emit: StreamEmit, signal?: AbortSignal) {
+  const session = getSession(sessionId);
+
+  if (!session || session.status !== 'active') {
+    throw new Error('会话不存在或已归档。');
+  }
+
+  const state = getManagedState(sessionId);
+  state.lastUsed = Date.now();
+
+  for (const event of state.eventBuffer) {
+    emit(event);
+  }
+
+  if (!state.isRunning && !state.pendingQuestion) {
+    state.eventBuffer = [];
+  }
+
+  state.subscribers.add(emit);
+
+  if (signal?.aborted) {
+    state.subscribers.delete(emit);
+    return;
+  }
+
+  await new Promise<void>((resolve) => {
+    const onAbort = () => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    };
+
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
+
+  state.subscribers.delete(emit);
+  state.lastUsed = Date.now();
 }
 
 export function resolveQuestionAnswer(sessionId: string, questionId: string, answer: string) {

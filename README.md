@@ -15,10 +15,12 @@ fitword 是一个本地运行的中文表达练习工具，通过选择题、填
 
 ## 安装
 
-要求：Node.js >= 20.6、npm。
+要求：Node.js >= 22.19.0、pnpm 10.34.4。
 
 ```bash
-npm install
+corepack enable
+corepack prepare pnpm@10.34.4 --activate
+pnpm install
 ```
 
 ## 运行
@@ -34,7 +36,7 @@ OPENAI_MODEL=deepseek-v4-flash
 Fitword 会把这三个变量作为统一的 OpenAI-compatible LLM 配置传给 Pi SDK。`OPENAI_BASE_URL` 可指向 DeepSeek 等兼容 OpenAI Chat Completions 的服务。
 
 ```bash
-npm run dev
+pnpm run dev
 ```
 
 启动后访问终端输出的 localhost 地址（默认 `http://localhost:5174`）。Fitword 需要可用的模型配置才能进行对话、出题和写作评分。

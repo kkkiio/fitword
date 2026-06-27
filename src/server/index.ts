@@ -9,6 +9,19 @@ const app = new Hono();
 app.get('/api/health', (context) => context.json({ ok: true }));
 app.get('/api/stats', (context) => context.json(getStats()));
 app.get('/api/sessions', (context) => context.json(getActiveSessions()));
+app.post('/api/sessions', async (context) => {
+  const body = await context.req.json().catch(() => ({}));
+  const message = String(body.message ?? '');
+  const intent = body.intent === 'score' ? 'score' : undefined;
+
+  try {
+    const { createSessionAndSendMessage } = await import('./pi-agent.js');
+    const session = createSessionAndSendMessage({ message, intent });
+    return context.json(session, 201);
+  } catch (error) {
+    return context.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+  }
+});
 app.get('/api/sessions/:id/messages', async (context) => {
   const sessionId = context.req.param('id');
   const session = getSession(sessionId);
@@ -19,6 +32,37 @@ app.get('/api/sessions/:id/messages', async (context) => {
 
   const { readSessionMessages } = await import('./pi-agent.js');
   return context.json(readSessionMessages(sessionId));
+});
+app.post('/api/sessions/:id/messages', async (context) => {
+  const sessionId = context.req.param('id');
+  const body = await context.req.json().catch(() => ({}));
+  const message = String(body.message ?? '');
+  const intent = body.intent === 'score' ? 'score' : undefined;
+
+  try {
+    const { sendSessionMessage } = await import('./pi-agent.js');
+    return context.json(sendSessionMessage({ sessionId, message, intent }));
+  } catch (error) {
+    return context.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+  }
+});
+app.get('/api/sessions/:id/events', async (context) => {
+  const sessionId = context.req.param('id');
+  const session = getSession(sessionId);
+
+  if (!session || session.status !== 'active') {
+    return context.json({ error: '会话不存在或已归档。' }, 404);
+  }
+
+  const { subscribeSessionEvents } = await import('./pi-agent.js');
+  return new Response(createSseStream((emit, signal) => subscribeSessionEvents(sessionId, emit, signal), context.req.raw.signal), {
+    headers: {
+      'content-type': 'text/event-stream; charset=utf-8',
+      'cache-control': 'no-cache, no-transform',
+      connection: 'keep-alive',
+      'x-accel-buffering': 'no',
+    },
+  });
 });
 app.post('/api/sessions/:id/archive', async (context) => {
   const sessionId = context.req.param('id');
@@ -49,34 +93,6 @@ app.post('/api/sessions/:id/answer', async (context) => {
   } catch (error) {
     return context.json({ error: error instanceof Error ? error.message : String(error) }, 409);
   }
-});
-app.post('/api/chat/stream', async (context) => {
-  const body = await context.req.json().catch(() => ({}));
-  const message = String(body.message ?? '');
-  const intent = body.intent === 'score' ? 'score' : undefined;
-  const sessionId = typeof body.sessionId === 'string' && body.sessionId ? body.sessionId : undefined;
-
-  if (!message.trim()) {
-    return context.json({ error: '消息不能为空。' }, 400);
-  }
-
-  const { prepareChatSession, streamChat } = await import('./pi-agent.js');
-  let session;
-  try {
-    session = prepareChatSession({ sessionId, message });
-  } catch (error) {
-    return context.json({ error: error instanceof Error ? error.message : String(error) }, 400);
-  }
-
-  return new Response(createSseStream((emit, signal) => streamChat({ sessionId: session.id, message, intent }, emit, signal), context.req.raw.signal), {
-    headers: {
-      'content-type': 'text/event-stream; charset=utf-8',
-      'cache-control': 'no-cache, no-transform',
-      connection: 'keep-alive',
-      'x-accel-buffering': 'no',
-      'x-fitword-session-id': session.id,
-    },
-  });
 });
 app.use('/*', serveStatic({ root: 'dist' }));
 
