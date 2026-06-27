@@ -45,10 +45,7 @@ export interface ScoreCard {
   rewrite: string;
 }
 
-export type ChatPart =
-  | { kind: 'text'; text: string }
-  | { kind: 'question'; card: QuestionCard }
-  | { kind: 'score'; card: ScoreCard };
+export type ChatPart = { kind: 'text'; text: string } | { kind: 'question'; card: QuestionCard } | { kind: 'score'; card: ScoreCard };
 
 export interface ChatMessage {
   id: string;

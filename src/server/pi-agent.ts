@@ -13,6 +13,13 @@ import {
   SettingsManager,
 } from '@earendil-works/pi-coding-agent';
 import {
+  fauxAssistantMessage,
+  fauxText,
+  fauxToolCall,
+  registerFauxProvider,
+  type FauxProviderRegistration,
+} from '@earendil-works/pi-ai/compat';
+import {
   createSessionFromFirstMessage,
   fitwordDataDir,
   fitwordSessionDir,
@@ -23,19 +30,16 @@ import {
   getStats,
 } from './db.js';
 import { FITWORD_SYSTEM_PROMPT } from './system-prompt.js';
-import type {
-  ChatMessage,
-  ChatPart,
-  KnowledgeType,
-  Quality,
-  QuestionCard,
-  ScoreCard,
-  SessionInfo,
-} from '../shared/types.js';
+import type { ChatMessage, ChatPart, KnowledgeType, Quality, QuestionCard, ScoreCard, SessionInfo } from '../shared/types.js';
 
-export type StreamEmit = (event: string, data: Record<string, unknown>) => void;
+export type StreamEmit = (data: Record<string, unknown>) => void;
 
 type PiSession = Awaited<ReturnType<typeof createAgentSession>>['session'];
+
+interface SessionEventSubscriber {
+  emit: StreamEmit;
+  reject: (error: Error) => void;
+}
 
 interface PendingQuestion {
   card: QuestionCard;
@@ -47,55 +51,73 @@ interface ManagedPiSession {
   id: string;
   queue: Promise<void>;
   lastUsed: number;
-  emit?: StreamEmit;
+  isRunning: boolean;
+  subscribers: Set<SessionEventSubscriber>;
+  eventBuffer: Record<string, unknown>[];
+  transportError?: Error;
   session?: PiSession;
   sessionPromise?: Promise<PiSession>;
   unsubscribe?: () => void;
   historyManager?: SessionManager;
   pendingQuestion?: PendingQuestion;
+  llmProvider?: FitwordLlmProvider;
 }
 
+type FitwordLlmProvider = 'openai-compatible' | 'faux';
+type FitwordLlmConfig =
+  | {
+      provider: 'openai-compatible';
+      openAIApiKey: string;
+      openAIBaseUrl: string;
+      openAIModel: string;
+    }
+  | {
+      provider: 'faux';
+    };
+
 const openAICompatibleProvider = 'fitword-openai-compatible';
+const fauxProviderName = 'fitword-faux';
+const fauxApiName = 'fitword-faux';
+const fauxModelId = 'fitword-faux-1';
 const sessionCache = new Map<string, ManagedPiSession>();
 const maxCachedAgents = 10;
+const maxBufferedEvents = 500;
+let fauxProvider: FauxProviderRegistration | undefined;
 const configuredQuestionTimeoutMs = Number.parseInt(process.env.FITWORD_QUESTION_TIMEOUT_MS ?? '', 10);
 const questionAnswerTimeoutMs =
-  Number.isFinite(configuredQuestionTimeoutMs) && configuredQuestionTimeoutMs > 0
-    ? configuredQuestionTimeoutMs
-    : 15 * 60 * 1000;
+  Number.isFinite(configuredQuestionTimeoutMs) && configuredQuestionTimeoutMs > 0 ? configuredQuestionTimeoutMs : 15 * 60 * 1000;
 
-const choiceSamples: Record<KnowledgeType, { q: string; c: string[]; a: string; t: string }> = {
-  noun: {
-    q: '靠窗那排适合临时办公的长条桌，通常叫____。',
-    c: ['吧台', '工位', '展台', '柜台'],
-    a: '吧台',
-    t: '空间描述',
-  },
-  verb: {
-    q: '项目第一阶段的开发已经____，下周进入测试。',
-    c: ['完成', '告一段落', '收尾', '结束'],
-    a: '告一段落',
-    t: '进度汇报',
-  },
-  adjective: {
-    q: '这段介绍信息很多，但读起来有点____，缺少重点。',
-    c: ['松散', '热闹', '锋利', '厚重'],
-    a: '松散',
-    t: '写作表达',
-  },
-  logic: {
-    q: '他很早到了会场，____还是错过了开场致辞。',
-    c: ['因此', '却', '并且', '除非'],
-    a: '却',
-    t: '逻辑连接',
-  },
-  domain: {
-    q: '这杯咖啡的____很突出，入口能闻到明显的花果香。',
-    c: ['风味', '库存', '浓度', '杯型'],
-    a: '风味',
-    t: '咖啡',
-  },
-};
+function getRequiredLlmConfig(): FitwordLlmConfig {
+  const configuredProvider = process.env.FITWORD_LLM_PROVIDER?.trim() || 'openai-compatible';
+  if (configuredProvider === 'faux') {
+    if (process.env.NODE_ENV !== 'test') {
+      throw new Error('FITWORD_LLM_PROVIDER=faux 只允许在 NODE_ENV=test 下使用。');
+    }
+    return { provider: 'faux' };
+  }
+
+  if (configuredProvider !== 'openai-compatible') {
+    throw new Error('FITWORD_LLM_PROVIDER 只支持 openai-compatible 或 faux。');
+  }
+
+  const openAIApiKey = process.env.OPENAI_API_KEY?.trim();
+  const openAIBaseUrl = process.env.OPENAI_BASE_URL?.trim();
+  const openAIModel = process.env.OPENAI_MODEL?.trim();
+
+  if (!openAIApiKey || !openAIBaseUrl || !openAIModel) {
+    const missingConfig: string[] = [];
+    if (!openAIApiKey) missingConfig.push('OPENAI_API_KEY');
+    if (!openAIBaseUrl) missingConfig.push('OPENAI_BASE_URL');
+    if (!openAIModel) missingConfig.push('OPENAI_MODEL');
+    throw new Error(`LLM 配置缺少 ${missingConfig.join(', ')}；请同时配置 OPENAI_API_KEY、OPENAI_BASE_URL 和 OPENAI_MODEL。`);
+  }
+
+  return { provider: 'openai-compatible', openAIApiKey, openAIBaseUrl, openAIModel };
+}
+
+function stripInstructionTag(text: string) {
+  return text.replace(/^<instruction>[\s\S]*?<\/instruction>\s*/u, '');
+}
 
 function getSessionFilePath(sessionId: string) {
   return path.join(fitwordSessionDir, `${sessionId}.jsonl`);
@@ -133,6 +155,9 @@ function getManagedState(sessionId: string) {
     id: sessionId,
     queue: Promise.resolve(),
     lastUsed: Date.now(),
+    isRunning: false,
+    subscribers: new Set(),
+    eventBuffer: [],
   };
 
   sessionCache.set(sessionId, state);
@@ -147,14 +172,6 @@ function getHistoryManager(state: ManagedPiSession) {
   const sessionFile = ensureSessionFile(state.id);
   state.historyManager = SessionManager.open(sessionFile, fitwordSessionDir, fitwordDataDir);
   return state.historyManager;
-}
-
-function appendFallbackMessage(state: ManagedPiSession, message: Record<string, unknown>) {
-  const manager = state.session?.sessionManager ?? getHistoryManager(state);
-  manager.appendMessage({
-    timestamp: Date.now(),
-    ...message,
-  } as any);
 }
 
 function waitForQuestionAnswer(state: ManagedPiSession, card: QuestionCard, signal?: AbortSignal) {
@@ -225,10 +242,10 @@ function createFitwordTools(state: ManagedPiSession) {
       candidates: Type.Optional(Type.Array(Type.String())),
       correct: Type.Optional(Type.String()),
     }),
-    execute: async (_toolCallId, params, signal) => {
+    execute: async (toolCallId, params, signal) => {
       const card: QuestionCard = {
         type: 'question',
-        id: randomUUID(),
+        id: toolCallId,
         format: params.format,
         question: params.question,
         knowledge_type: params.knowledge_type,
@@ -241,7 +258,6 @@ function createFitwordTools(state: ManagedPiSession) {
         throw new Error('选择题必须提供 candidates 和 correct。');
       }
 
-      state.emit?.('tool', { kind: 'question', card });
       const result = await waitForQuestionAnswer(state, card, signal);
 
       return {
@@ -287,7 +303,6 @@ function createFitwordTools(state: ManagedPiSession) {
         correct: params.correct,
       });
 
-      state.emit?.('tool', { kind: 'answer_recorded', result });
       return { content: [{ type: 'text', text: JSON.stringify(result) }], details: result };
     },
   });
@@ -319,7 +334,6 @@ function createFitwordTools(state: ManagedPiSession) {
     execute: async (_toolCallId, params) => {
       const card: ScoreCard = { type: 'score', ...params };
       card.scoring_record_id = saveScore(card);
-      state.emit?.('tool', { kind: 'score', card });
       return {
         content: [{ type: 'text', text: JSON.stringify({ scoring_record_id: card.scoring_record_id }) }],
         details: { card },
@@ -350,24 +364,130 @@ function createFitwordTools(state: ManagedPiSession) {
   return [askQuestionTool, recordAnswerTool, evaluateWritingTool, getPracticeStatsTool];
 }
 
+function getFauxProvider() {
+  if (fauxProvider) {
+    return fauxProvider;
+  }
+
+  fauxProvider = registerFauxProvider({
+    api: fauxApiName,
+    provider: fauxProviderName,
+    models: [
+      {
+        id: fauxModelId,
+        name: 'Fitword Faux',
+        reasoning: false,
+        input: ['text'],
+        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+        contextWindow: 128000,
+        maxTokens: 4096,
+      },
+    ],
+  });
+
+  return fauxProvider;
+}
+
+function setFauxResponsesForTurn(message: string, intent: 'score' | undefined) {
+  const provider = getFauxProvider();
+
+  if (intent === 'score') {
+    provider.setResponses([
+      fauxAssistantMessage(
+        [
+          fauxToolCall('evaluate_writing', {
+            original_text: message,
+            total_score: 3.8,
+            dimensions: {
+              accuracy: 3.5,
+              specificity: 3.2,
+              naturalness: 4,
+              structure: 3.8,
+              register: 4.2,
+            },
+            main_issues: '表达比较笼统，缺少具体进展、动作和结果。',
+            suggestions: [
+              {
+                original: '推进很正常',
+                replacement: '按计划推进',
+                reason: '更适合项目描述，也更明确地表达进度状态。',
+              },
+              {
+                original: '做了很多事情',
+                replacement: '完成了接口联调、风险梳理和方案同步',
+                reason: '用具体动作替代笼统概括，信息密度更高。',
+              },
+            ],
+            rewrite: '本周项目按计划推进，团队完成了接口联调、风险梳理和方案同步，整体进展稳定。',
+          }),
+        ],
+        { stopReason: 'toolUse' },
+      ),
+      fauxAssistantMessage([fauxText('已完成评分。')]),
+    ]);
+    return;
+  }
+
+  const wantsFillQuestion = /填空|填词|周报/u.test(message);
+  const question = wantsFillQuestion
+    ? ({
+        format: 'fill',
+        question: '周报里说“这个方案可以 ____ 跨团队进度”，填哪个词更自然？',
+        knowledge_type: 'verb',
+        topic_tag: message.includes('周报') ? '周报' : '填空练习',
+      } as const)
+    : ({
+        format: 'choice',
+        question: '项目汇报里说“我们 ____ 了风险并同步方案”，哪个动词最贴切？',
+        knowledge_type: 'verb',
+        topic_tag: message.includes('项目汇报') ? '项目汇报' : '表达练习',
+        candidates: ['识别', '看见', '感觉', '知道'],
+        correct: '识别',
+      } as const);
+
+  provider.setResponses([
+    fauxAssistantMessage([fauxToolCall('ask_question', question)], { stopReason: 'toolUse' }),
+    (context) => {
+      const toolResult = [...context.messages]
+        .reverse()
+        .find((candidate) => candidate.role === 'toolResult' && candidate.toolName === 'ask_question');
+      const textBlock = Array.isArray(toolResult?.content)
+        ? toolResult.content.find((block) => block.type === 'text' && typeof block.text === 'string')
+        : undefined;
+      const parsed = textBlock?.type === 'text' ? JSON.parse(textBlock.text) : {};
+      const userAnswer = typeof parsed.user_answer === 'string' ? parsed.user_answer : '';
+      return fauxAssistantMessage(
+        [
+          fauxToolCall('record_answer', {
+            ...question,
+            user_answer: userAnswer,
+            quality: question.format === 'choice' ? (parsed.quality === 2 ? 2 : 0) : userAnswer.includes('统筹') ? 2 : userAnswer ? 1 : 0,
+          }),
+        ],
+        { stopReason: 'toolUse' },
+      );
+    },
+    fauxAssistantMessage([
+      fauxText(
+        wantsFillQuestion ? '“统筹”能表达主动协调多个团队的动作，比泛泛地说“处理进度”更具体。' : '这道题考察项目汇报中更准确的动作动词。',
+      ),
+    ]),
+  ]);
+}
+
 async function createFitwordPiSession(state: ManagedPiSession) {
   const authStorage = AuthStorage.create(path.join(fitwordDataDir, 'auth.json'));
   const modelRegistry = ModelRegistry.create(authStorage, path.join(fitwordDataDir, 'models.json'));
   const settingsManager = SettingsManager.inMemory({ compaction: { enabled: false } });
-  const openAIApiKey = process.env.OPENAI_API_KEY?.trim();
-  const openAIBaseUrl = process.env.OPENAI_BASE_URL?.trim();
-  const openAIModel = process.env.OPENAI_MODEL?.trim();
+  const llmConfig = getRequiredLlmConfig();
   let selectedModel: CreateAgentSessionOptions['model'];
 
-  if (openAIApiKey || openAIBaseUrl || openAIModel) {
-    if (!openAIApiKey || !openAIBaseUrl || !openAIModel) {
-      const missingConfig: string[] = [];
-      if (!openAIApiKey) missingConfig.push('OPENAI_API_KEY');
-      if (!openAIBaseUrl) missingConfig.push('OPENAI_BASE_URL');
-      if (!openAIModel) missingConfig.push('OPENAI_MODEL');
-      throw new Error(`LLM 配置缺少 ${missingConfig.join(', ')}；请同时配置 OPENAI_API_KEY、OPENAI_BASE_URL 和 OPENAI_MODEL。`);
-    }
-
+  if (llmConfig.provider === 'faux') {
+    const provider = getFauxProvider();
+    authStorage.setRuntimeApiKey(fauxProviderName, 'fitword-faux-key');
+    selectedModel = provider.getModel();
+  } else {
+    const { openAIApiKey, openAIBaseUrl, openAIModel } = llmConfig;
     const normalizedBaseUrl = openAIBaseUrl.replace(/\/+$/, '');
     const builtInModel = modelRegistry
       .getAll()
@@ -400,6 +520,8 @@ async function createFitwordPiSession(state: ManagedPiSession) {
       throw new Error(`无法注册 LLM 模型 ${openAIModel}。`);
     }
   }
+
+  state.llmProvider = llmConfig.provider;
 
   const resourceLoader = new DefaultResourceLoader({
     cwd: fitwordDataDir,
@@ -440,14 +562,19 @@ async function getPiSession(state: ManagedPiSession) {
 
   if (!state.unsubscribe) {
     state.unsubscribe = session.subscribe((event: any) => {
-      if (event.type === 'message_update' && event.assistantMessageEvent?.type === 'text_delta') {
-        state.emit?.('delta', { text: event.assistantMessageEvent.delta });
+      const payload = event as Record<string, unknown>;
+      state.eventBuffer.push(payload);
+      if (state.eventBuffer.length > maxBufferedEvents) {
+        state.eventBuffer.splice(0, state.eventBuffer.length - maxBufferedEvents);
+      }
+      for (const subscriber of state.subscribers) {
+        subscriber.emit(payload);
       }
     });
   }
 
   const cachedStates = [...sessionCache.values()]
-    .filter((cached) => cached.session && !cached.pendingQuestion && !cached.emit && cached.id !== state.id)
+    .filter((cached) => cached.session && !cached.pendingQuestion && cached.subscribers.size === 0 && cached.id !== state.id)
     .sort((a, b) => a.lastUsed - b.lastUsed);
   while ([...sessionCache.values()].filter((cached) => cached.session).length > maxCachedAgents && cachedStates.length > 0) {
     const stale = cachedStates.shift();
@@ -463,181 +590,18 @@ async function getPiSession(state: ManagedPiSession) {
   return session;
 }
 
-function demoQuestion(text: string) {
-  let knowledgeType: KnowledgeType = 'verb';
-
-  if (/逻辑|因果|但是|然而/.test(text)) {
-    knowledgeType = 'logic';
-  } else if (/领域|咖啡|产品|技术|AI/.test(text)) {
-    knowledgeType = 'domain';
-  } else if (/形容|风格|质感/.test(text)) {
-    knowledgeType = 'adjective';
-  } else if (/名词|叫什么/.test(text)) {
-    knowledgeType = 'noun';
-  }
-
-  const sample = choiceSamples[knowledgeType];
-  const fill = /填空|难一点|产出/.test(text);
-  const card: QuestionCard = {
-    type: 'question',
-    id: randomUUID(),
-    format: fill ? 'fill' : 'choice',
-    question: sample.q,
-    knowledge_type: knowledgeType,
-    topic_tag: sample.t,
-    candidates: fill ? undefined : sample.c,
-    correct: fill ? undefined : sample.a,
-  };
-
-  return card;
-}
-
-function demoScore(text: string): ScoreCard {
-  const vague = (text.match(/很好|不错|很多|大部分|正常|推进|事情/g) || []).length;
-  const specificity = Math.max(2, 5 - vague);
-  const card: ScoreCard = {
-    type: 'score',
-    original_text: text,
-    total_score: Math.round((4 + specificity + 4 + 3 + 4) / 5),
-    dimensions: {
-      accuracy: 4,
-      specificity,
-      naturalness: 4,
-      structure: 3,
-      register: 4,
-    },
-    main_issues: vague
-      ? '主要问题是具体度偏弱：有些词比较笼统，读者不容易知道具体进展。'
-      : '整体表达清楚，可以继续提升结构层次和关键词精度。',
-    suggestions: [
-      { original: '正常推进', replacement: '按计划进入下一阶段', reason: '比“正常”更明确进度状态' },
-      { original: '大部分', replacement: '列出数量或范围', reason: '用具体信息替代模糊范围' },
-    ],
-    rewrite: text.replace(/正常推进/g, '按计划进入下一阶段').replace(/大部分/g, '核心'),
-  };
-
-  card.scoring_record_id = saveScore(card);
-  return card;
-}
-
-async function streamFallback(
-  state: ManagedPiSession,
-  message: string,
-  intent: 'score' | undefined,
-  emit: StreamEmit,
-  reason: string,
-  signal?: AbortSignal,
-) {
-  emit('warning', { message: `Pi SDK 暂不可用，已进入本地演示流：${reason}` });
-  appendFallbackMessage(state, { role: 'user', content: message });
-
-  if (intent === 'score') {
-    const intro = '我先说重点：这段文字的可改空间主要在“具体度”和“结构”。';
-    const card = demoScore(message);
-    emit('delta', { text: intro });
-    emit('tool', { kind: 'score', card });
-    appendFallbackMessage(state, {
-      role: 'assistant',
-      content: [{ type: 'text', text: intro }],
-      api: 'local-demo',
-      provider: 'fitword',
-      model: 'demo',
-      usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
-      stopReason: 'stop',
-    });
-    appendFallbackMessage(state, {
-      role: 'toolResult',
-      toolCallId: randomUUID(),
-      toolName: 'evaluate_writing',
-      content: [{ type: 'text', text: JSON.stringify({ scoring_record_id: card.scoring_record_id }) }],
-      details: { card },
-      isError: false,
-    });
-    return;
-  }
-
-  const intro = '好，我们从一道贴近真实表达的题开始。';
-  const card = demoQuestion(message);
-  emit('delta', { text: intro });
-  emit('tool', { kind: 'question', card });
-  appendFallbackMessage(state, {
-    role: 'assistant',
-    content: [{ type: 'text', text: intro }, { type: 'toolCall', id: card.id, name: 'ask_question', arguments: card }],
-    api: 'local-demo',
-    provider: 'fitword',
-    model: 'demo',
-    usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
-    stopReason: 'toolUse',
-  });
-
-  const answer = await waitForQuestionAnswer(state, card, signal);
-  const result = recordAnswer({
-    format: card.format,
-    question: card.question,
-    knowledge_type: card.knowledge_type,
-    topic_tag: card.topic_tag,
-    user_answer: answer.user_answer,
-    quality: answer.quality ?? (answer.user_answer.length >= 2 ? 1 : 0),
-    candidates: card.candidates,
-    correct: card.correct,
-  });
-  const feedback =
-    card.format === 'choice'
-      ? answer.quality === 2
-        ? `对，${card.correct} 最贴切。`
-        : `这题更推荐 ${card.correct}。`
-      : `“${answer.user_answer}”能用；如果想更精准，可以继续比较语气、主动/被动和场景。`;
-
-  emit('tool', { kind: 'answer_recorded', result });
-  emit('delta', { text: feedback });
-  appendFallbackMessage(state, {
-    role: 'toolResult',
-    toolCallId: card.id,
-    toolName: 'ask_question',
-    content: [{ type: 'text', text: JSON.stringify(answer) }],
-    details: { card, result: answer },
-    isError: false,
-  });
-  appendFallbackMessage(state, {
-    role: 'assistant',
-    content: [{ type: 'text', text: feedback }],
-    api: 'local-demo',
-    provider: 'fitword',
-    model: 'demo',
-    usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
-    stopReason: 'stop',
-  });
-}
-
-async function runSessionTurn(
-  session: SessionInfo,
-  message: string,
-  intent: 'score' | undefined,
-  emit: StreamEmit,
-  signal?: AbortSignal,
-) {
+async function runSessionTurn(session: SessionInfo, message: string, intent: 'score' | undefined, signal?: AbortSignal) {
   const state = getManagedState(session.id);
   if (signal?.aborted) {
     throw new Error('请求已取消。');
   }
 
-  const userMessage: ChatMessage = {
-    id: randomUUID(),
-    role: 'user',
-    created_at: new Date().toISOString(),
-    parts: [{ kind: 'text', text: message }],
-  };
-
-  emit('message', { message: userMessage });
-  state.emit = emit;
+  state.isRunning = true;
+  state.eventBuffer = [];
+  state.transportError = undefined;
   state.lastUsed = Date.now();
 
   try {
-    if (process.env.FITWORD_FORCE_DEMO === '1') {
-      await streamFallback(state, message, intent, emit, 'FITWORD_FORCE_DEMO=1', signal);
-      return;
-    }
-
     let abortCurrentTurn: (() => void) | undefined;
 
     try {
@@ -653,43 +617,137 @@ async function runSessionTurn(
       };
       signal?.addEventListener('abort', abortCurrentTurn, { once: true });
 
-      const prompt = intent === 'score' ? `用户请求写作评分，请评分并调用 evaluate_writing 工具保存：\n${message}` : message;
-      await piSession.prompt(prompt, { source: 'user' } as any);
-    } catch (error) {
-      if (signal?.aborted) {
-        throw error;
+      const prompt =
+        intent === 'score' ? `<instruction>用户请求写作评分，请评分并调用 evaluate_writing 工具保存。</instruction>\n${message}` : message;
+      if (state.llmProvider === 'faux') {
+        setFauxResponsesForTurn(message, intent);
       }
-
-      await streamFallback(state, message, intent, emit, error instanceof Error ? error.message : String(error), signal);
+      await piSession.prompt(prompt, { source: 'user' } as any);
     } finally {
       if (abortCurrentTurn) {
         signal?.removeEventListener('abort', abortCurrentTurn);
       }
     }
   } finally {
-    state.emit = undefined;
+    state.isRunning = false;
+    if (state.subscribers.size > 0 && !state.pendingQuestion) {
+      state.eventBuffer = [];
+    }
     touchSession(session.id);
   }
 }
 
-export async function streamChat(input: { sessionId?: string; message: string; intent?: 'score' }, emit: StreamEmit, signal?: AbortSignal) {
+export function createSessionAndSendMessage(input: { message: string; intent?: 'score' }) {
   const text = input.message.trim();
 
   if (!text) {
     throw new Error('消息不能为空。');
   }
 
-  const session = input.sessionId ? getSession(input.sessionId) : createSessionFromFirstMessage(text);
+  getRequiredLlmConfig();
+
+  const session = createSessionFromFirstMessage(text);
+  const state = getManagedState(session.id);
+  const previous = state.queue.catch(() => undefined);
+  const run = previous.then(() => runSessionTurn(session, text, input.intent));
+  state.queue = run.catch((error) => {
+    const failure = error instanceof Error ? error : new Error(String(error));
+    state.transportError = failure;
+    state.session = undefined;
+    state.sessionPromise = undefined;
+    for (const subscriber of state.subscribers) {
+      subscriber.reject(failure);
+    }
+    console.error(failure);
+  });
+
+  return session;
+}
+
+export function sendSessionMessage(input: { sessionId: string; message: string; intent?: 'score' }) {
+  const text = input.message.trim();
+
+  if (!text) {
+    throw new Error('消息不能为空。');
+  }
+
+  getRequiredLlmConfig();
+
+  const session = getSession(input.sessionId);
   if (!session || session.status !== 'active') {
     throw new Error('会话不存在或已归档。');
   }
 
-  emit('session', { session });
   const state = getManagedState(session.id);
   const previous = state.queue.catch(() => undefined);
-  const run = previous.then(() => runSessionTurn(session, text, input.intent, emit, signal));
-  state.queue = run.catch(() => undefined);
-  await run;
+  const run = previous.then(() => runSessionTurn(session, text, input.intent));
+  state.queue = run.catch((error) => {
+    const failure = error instanceof Error ? error : new Error(String(error));
+    state.transportError = failure;
+    state.session = undefined;
+    state.sessionPromise = undefined;
+    for (const subscriber of state.subscribers) {
+      subscriber.reject(failure);
+    }
+    console.error(failure);
+  });
+
+  return {
+    ok: true,
+    session: touchSession(session.id) ?? session,
+  };
+}
+
+export async function subscribeSessionEvents(sessionId: string, emit: StreamEmit, signal?: AbortSignal) {
+  const session = getSession(sessionId);
+
+  if (!session || session.status !== 'active') {
+    throw new Error('会话不存在或已归档。');
+  }
+
+  const state = getManagedState(sessionId);
+  state.lastUsed = Date.now();
+
+  for (const event of state.eventBuffer) {
+    emit(event);
+  }
+
+  if (state.transportError && !state.isRunning) {
+    const error = state.transportError;
+    state.transportError = undefined;
+    state.eventBuffer = [];
+    throw error;
+  }
+
+  if (!state.isRunning && !state.pendingQuestion) {
+    state.eventBuffer = [];
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const subscriber: SessionEventSubscriber = {
+      emit,
+      reject(error) {
+        signal?.removeEventListener('abort', onAbort);
+        state.subscribers.delete(subscriber);
+        state.lastUsed = Date.now();
+        reject(error);
+      },
+    };
+
+    const onAbort = () => {
+      signal?.removeEventListener('abort', onAbort);
+      state.subscribers.delete(subscriber);
+      state.lastUsed = Date.now();
+      resolve();
+    };
+
+    signal?.addEventListener('abort', onAbort, { once: true });
+    state.subscribers.add(subscriber);
+
+    if (signal?.aborted) {
+      onAbort();
+    }
+  });
 }
 
 export function resolveQuestionAnswer(sessionId: string, questionId: string, answer: string) {
@@ -709,7 +767,7 @@ export function resolveQuestionAnswer(sessionId: string, questionId: string, ans
   const text = answer.trim();
   const normalized =
     card.format === 'choice' && /^[A-D]$/i.test(text)
-      ? card.candidates?.[['A', 'B', 'C', 'D'].indexOf(text.toUpperCase())] ?? text
+      ? (card.candidates?.[['A', 'B', 'C', 'D'].indexOf(text.toUpperCase())] ?? text)
       : text;
   const result =
     card.format === 'choice'
@@ -753,7 +811,10 @@ export function readSessionMessages(sessionId: string) {
   }
 
   const messages: ChatMessage[] = [];
-  const lines = fs.readFileSync(sessionFile, 'utf8').split('\n').filter((line) => line.trim());
+  const lines = fs
+    .readFileSync(sessionFile, 'utf8')
+    .split('\n')
+    .filter((line) => line.trim());
 
   for (const line of lines) {
     let entry: any;
@@ -778,13 +839,13 @@ export function readSessionMessages(sessionId: string) {
 
     if (sourceMessage.role === 'user') {
       if (typeof sourceMessage.content === 'string') {
-        parts.push({ kind: 'text', text: sourceMessage.content });
+        parts.push({ kind: 'text', text: stripInstructionTag(sourceMessage.content) });
       } else if (Array.isArray(sourceMessage.content)) {
         const text = sourceMessage.content
           .filter((block: any) => block?.type === 'text' && typeof block.text === 'string')
           .map((block: any) => block.text)
           .join('');
-        if (text) parts.push({ kind: 'text', text });
+        if (text) parts.push({ kind: 'text', text: stripInstructionTag(text) });
       }
       if (parts.length) {
         messages.push({ id: entry.id ?? randomUUID(), role: 'user', created_at: createdAt, parts });
@@ -798,6 +859,9 @@ export function readSessionMessages(sessionId: string) {
         .map((block: any) => block.text)
         .join('');
       if (text) parts.push({ kind: 'text', text });
+      if (sourceMessage.stopReason === 'error' && typeof sourceMessage.errorMessage === 'string') {
+        parts.push({ kind: 'text', text: `模型处理失败：${sourceMessage.errorMessage}` });
+      }
       if (parts.length) {
         messages.push({ id: entry.id ?? randomUUID(), role: 'agent', created_at: createdAt, parts });
       }

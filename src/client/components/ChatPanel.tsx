@@ -1,11 +1,7 @@
 import { Trans, useLingui } from '@lingui/react/macro';
 import { Send } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
-import {
-  Conversation,
-  ConversationContent,
-  ConversationScrollButton,
-} from '@/components/ai-elements/conversation';
+import { Conversation, ConversationContent, ConversationScrollButton } from '@/components/ai-elements/conversation';
 import {
   PromptInput,
   PromptInputFooter,
@@ -55,10 +51,7 @@ export function ChatPanel({
       ) : (
         <WelcomeScreen />
       )}
-      <PromptInput
-        className="border-t bg-background/95 px-4 py-3 backdrop-blur sm:px-6"
-        onSubmit={(message) => onSend(message.text)}
-      >
+      <PromptInput className="border-t bg-background/95 px-4 py-3 backdrop-blur sm:px-6" onSubmit={(message) => onSend(message.text)}>
         <PromptInputTextarea
           className={scoreMode ? 'min-h-28' : undefined}
           rows={scoreMode ? 4 : 1}

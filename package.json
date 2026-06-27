@@ -1,17 +1,19 @@
 {
+  "packageManager": "pnpm@10.34.4",
   "scripts": {
-    "dev": "concurrently -k -n api,web \"npm run dev:server\" \"npm run dev:web\"",
+    "dev": "concurrently -k -n api,web \"pnpm run dev:server\" \"pnpm run dev:web\"",
     "dev:server": "PORT=5175 tsx watch --env-file .env src/server/index.ts",
     "dev:web": "vite",
     "i18n:extract": "lingui extract",
     "i18n:compile": "lingui compile --typescript",
     "bddgen": "bddgen",
-    "test:e2e": "npm run build && npm run bddgen && node --env-file .env node_modules/.bin/playwright test",
+    "test:e2e": "pnpm run build && pnpm run bddgen && node --env-file .env node_modules/@playwright/test/cli.js test",
     "typecheck": "tsc --noEmit",
     "test": "vitest run src",
     "build": "vite build"
   },
   "dependencies": {
+    "@earendil-works/pi-ai": "^0.80.2",
     "@earendil-works/pi-coding-agent": "^0.80.2",
     "@hono/node-server": "latest",
     "@lingui/core": "^6.4.0",
@@ -52,18 +54,27 @@
     "@playwright/test": "^1.61.1",
     "@tailwindcss/typography": "^0.5.20",
     "@types/better-sqlite3": "latest",
-    "@types/node": "latest",
+    "@types/node": "^22.19.0",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "@vitejs/plugin-react": "^4.7.0",
     "concurrently": "^10.0.3",
     "jsdom": "latest",
     "playwright-bdd": "^9.2.0",
+    "prettier": "^3.9.0",
     "vite": "^6.4.3",
     "vitest": "latest"
   },
   "engines": {
-    "node": ">=20.6"
+    "node": ">=22.19.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@google/genai",
+      "better-sqlite3",
+      "esbuild",
+      "protobufjs"
+    ]
   },
   "type": "module"
 }

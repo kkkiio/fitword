@@ -13,16 +13,21 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
-#: src/client/components/Sidebar.tsx:119
+#. placeholder {0}: row.total
+#: src/client/components/StatsPanel.tsx:104
+msgid "{0} 题"
+msgstr "{0} questions"
+
+#: src/client/components/Sidebar.tsx:148
 msgid "中文"
 msgstr "Chinese"
 
 #: src/client/components/StatsPanel.tsx:61
-msgid "优先打磨"
-msgstr "Priority practice"
+#~ msgid "优先打磨"
+#~ msgstr "Priority practice"
 
-#: src/client/components/StatsPanel.tsx:36
-#: src/client/components/StatsPanel.tsx:66
+#: src/client/components/StatsPanel.tsx:73
+#: src/client/components/StatsPanel.tsx:110
 msgid "优质率"
 msgstr "Good rate"
 
@@ -34,26 +39,32 @@ msgstr "Good rate"
 #~ msgid "你好，我是 fitword（词感）。说一个想练的话题，或点击“提交评分”粘贴一段文字。"
 #~ msgstr "Hi, I am fitword (Word Sense). Tell me what you want to practice, or choose \"Score writing\" to paste a passage."
 
+#: src/client/components/StatsPanel.tsx:30
+msgid "具体"
+msgstr "Specificity"
+
 #: src/client/components/ScoreCardView.tsx:12
 msgid "具体度"
 msgstr "Specificity"
 
-#: src/client/components/ChatPanel.tsx:74
+#: src/client/components/ChatPanel.tsx:67
 #: src/client/components/ScoreCardView.tsx:20
 #: src/client/components/ScoreCardView.tsx:25
-#: src/client/components/StatsPanel.tsx:85
+#: src/client/components/StatsPanel.tsx:124
 msgid "写作评分"
 msgstr "Writing score"
+
+#: src/client/components/StatsPanel.tsx:29
+msgid "准确"
+msgstr "Accuracy"
 
 #: src/client/components/ScoreCardView.tsx:11
 msgid "准确度"
 msgstr "Accuracy"
 
-#. placeholder {0}: String(data.message ?? '未知错误')
 #. placeholder {0}: error instanceof Error ? error.message : String(error)
-#: src/client/hooks/use-sessions.ts:168
-#: src/client/hooks/use-sessions.ts:284
-#: src/client/hooks/use-sessions.ts:293
+#: src/client/hooks/use-sessions.ts:339
+#: src/client/hooks/use-sessions.ts:388
 msgid "出错了：{0}"
 msgstr "Error: {0}"
 
@@ -86,8 +97,8 @@ msgstr "Loading stats..."
 msgid "动词"
 msgstr "Verbs"
 
-#: src/client/components/ChatPanel.tsx:77
-#: src/client/components/ChatPanel.tsx:78
+#: src/client/components/ChatPanel.tsx:70
+#: src/client/components/ChatPanel.tsx:71
 msgid "发送"
 msgstr "Send"
 
@@ -96,13 +107,13 @@ msgstr "Send"
 #~ msgstr "Cancel scoring"
 
 #: src/client/components/StatsPanel.tsx:30
-msgid "只读展示本地 SQLite 中的练习质量分布。"
-msgstr "Read-only view of practice quality distribution in local SQLite."
+#~ msgid "只读展示本地 SQLite 中的练习质量分布。"
+#~ msgstr "Read-only view of practice quality distribution in local SQLite."
 
 #: src/client/components/StatsPanel.tsx:35
 #: src/client/components/StatsPanel.tsx:65
-msgid "可用率"
-msgstr "Usable rate"
+#~ msgid "可用率"
+#~ msgstr "Usable rate"
 
 #: src/client/hooks/use-knowledge-labels.ts:6
 msgid "名词"
@@ -113,21 +124,29 @@ msgstr "Nouns"
 msgid "填空题"
 msgstr "Fill-in"
 
-#: src/client/components/Sidebar.tsx:59
+#: src/client/components/Sidebar.tsx:62
 msgid "对话"
 msgstr "Chat"
 
+#: src/client/components/StatsPanel.tsx:127
+msgid "展示五维平均分。"
+msgstr "Show five-dimension average scores."
+
+#: src/client/components/StatsPanel.tsx:146
+msgid "平均总分"
+msgstr "Average total score"
+
 #. placeholder {0}: stats.writing_summary.average_total_score ?? 0
 #: src/client/components/StatsPanel.tsx:88
-msgid "平均总分：{0}"
-msgstr "Average total score: {0}"
+#~ msgid "平均总分：{0}"
+#~ msgstr "Average total score: {0}"
 
-#: src/client/components/Sidebar.tsx:77
-#: src/client/components/Sidebar.tsx:77
+#: src/client/components/Sidebar.tsx:90
+#: src/client/components/Sidebar.tsx:91
 msgid "归档对话"
 msgstr "Archive conversation"
 
-#: src/client/hooks/use-sessions.ts:140
+#: src/client/hooks/use-sessions.ts:309
 msgid "归档这个对话？"
 msgstr "Archive this conversation?"
 
@@ -137,15 +156,15 @@ msgstr "Adjectives"
 
 #: src/client/components/StatsPanel.tsx:37
 #: src/client/components/StatsPanel.tsx:67
-msgid "待打磨率"
-msgstr "Needs work rate"
+#~ msgid "待打磨率"
+#~ msgstr "Needs work rate"
 
 #. placeholder {0}: stats.writing_summary.total_records
 #: src/client/components/StatsPanel.tsx:86
-msgid "总记录 {0} 次"
-msgstr "{0} records"
+#~ msgid "总记录 {0} 次"
+#~ msgstr "{0} records"
 
-#: src/client/components/StatsPanel.tsx:34
+#: src/client/components/StatsPanel.tsx:66
 msgid "总题数"
 msgstr "Total questions"
 
@@ -153,6 +172,10 @@ msgstr "Total questions"
 #: src/client/components/ChatPanel.tsx:47
 #~ msgid "或新建对话开始练习"
 #~ msgstr "Or create a conversation to start practicing"
+
+#: src/client/components/StatsPanel.tsx:90
+msgid "按题型展示题数和优质率。"
+msgstr "Show question count and good rate by format."
 
 #: src/client/main.tsx:409
 #: src/client/main.tsx:414
@@ -164,24 +187,41 @@ msgstr "Total questions"
 #~ msgid "新对话"
 #~ msgstr "New conversation"
 
-#: src/client/components/Sidebar.tsx:61
-#: src/client/components/Sidebar.tsx:61
+#: src/client/components/Sidebar.tsx:65
+#: src/client/components/Sidebar.tsx:65
 msgid "新建对话"
 msgstr "New conversation"
 
-#: src/client/components/Sidebar.tsx:68
+#: src/client/components/StatsPanel.tsx:133
+msgid "暂无写作评分数据，完成评分后会显示五维平均分。"
+msgstr "No writing score data yet. Complete scoring to see five-dimension averages."
+
+#: src/client/components/Sidebar.tsx:73
 msgid "暂无对话"
 msgstr "No conversations"
 
 #: src/client/components/StatsPanel.tsx:56
-msgid "暂无数据，完成练习后会显示。"
-msgstr "No data yet. Complete practice to see it here."
+#~ msgid "暂无数据，完成练习后会显示。"
+#~ msgstr "No data yet. Complete practice to see it here."
 
-#: src/client/components/Sidebar.tsx:116
+#: src/client/components/StatsPanel.tsx:60
+msgid "暂无答题数据，完成练习后会显示概览。"
+msgstr "No answer data yet. Complete practice to see the overview."
+
+#: src/client/components/StatsPanel.tsx:96
+msgid "暂无题型数据。"
+msgstr "No format data yet."
+
+#. placeholder {0}: message.errorMessage
+#: src/client/hooks/use-sessions.ts:219
+msgid "模型处理失败：{0}"
+msgstr "Model processing failed: {0}"
+
+#: src/client/components/Sidebar.tsx:139
 msgid "界面语言"
 msgstr "Interface language"
 
-#: src/client/components/QuestionCardView.tsx:64
+#: src/client/components/QuestionCardView.tsx:69
 msgid "确认答案"
 msgstr "Confirm answer"
 
@@ -189,54 +229,80 @@ msgstr "Confirm answer"
 msgid "答完后我会给出语境适配度和表达差异。"
 msgstr "After you answer, I will show context fit and expression differences."
 
-#: src/client/components/ChatPanel.tsx:42
+#: src/client/components/StatsPanel.tsx:54
+msgid "答题数量与整体优质率。"
+msgstr "Question count and overall good rate."
+
+#: src/client/components/StatsPanel.tsx:51
+msgid "答题概览"
+msgstr "Answer overview"
+
+#: src/client/components/ChatPanel.tsx:38
 msgid "粘贴需要评分的文字…"
 msgstr "Paste text to score..."
 
-#: src/client/components/StatsPanel.tsx:29
+#: src/client/components/StatsPanel.tsx:41
 msgid "练习统计"
 msgstr "Practice stats"
 
 #: src/client/components/ScoreCardView.tsx:14
+#: src/client/components/StatsPanel.tsx:32
 msgid "结构"
 msgstr "Structure"
 
-#: src/client/components/Sidebar.tsx:90
-#: src/client/components/Sidebar.tsx:92
+#: src/client/components/Sidebar.tsx:106
+#: src/client/components/Sidebar.tsx:109
 msgid "统计"
 msgstr "Stats"
+
+#: src/client/components/StatsPanel.tsx:31
+msgid "自然"
+msgstr "Naturalness"
 
 #: src/client/components/ScoreCardView.tsx:13
 msgid "自然度"
 msgstr "Naturalness"
 
 #: src/client/components/StatsPanel.tsx:48
-msgid "薄弱类型分布"
-msgstr "Weak type distribution"
+#~ msgid "薄弱类型分布"
+#~ msgstr "Weak type distribution"
 
-#: src/client/components/Sidebar.tsx:104
-#: src/client/components/Sidebar.tsx:104
-#: src/client/components/Sidebar.tsx:109
-#: src/client/components/Sidebar.tsx:113
+#: src/client/components/Sidebar.tsx:122
+#: src/client/components/Sidebar.tsx:122
+#: src/client/components/Sidebar.tsx:128
+#: src/client/components/Sidebar.tsx:134
 msgid "设置"
 msgstr "Settings"
 
-#: src/client/components/Sidebar.tsx:52
+#: src/client/components/StatsPanel.tsx:140
+msgid "评分次数"
+msgstr "Scoring count"
+
+#: src/client/components/Sidebar.tsx:53
 #: src/client/components/WelcomeScreen.tsx:11
 msgid "词感 · 表达练习"
 msgstr "Word sense · Expression practice"
 
 #: src/client/components/ScoreCardView.tsx:15
+#: src/client/components/StatsPanel.tsx:33
 msgid "语域"
 msgstr "Register"
 
-#: src/client/components/ChatPanel.tsx:42
+#: src/client/components/StatsPanel.tsx:44
+msgid "轻量概览本地练习记录，帮助你判断是否需要继续练习。"
+msgstr "Light overview of local practice records to help you decide whether to keep practicing."
+
+#: src/client/components/ChatPanel.tsx:38
 msgid "输入你的消息…"
 msgstr "Enter your message..."
 
-#: src/client/components/QuestionCardView.tsx:62
+#: src/client/components/QuestionCardView.tsx:65
 msgid "输入你觉得最贴切的词"
 msgstr "Enter the word that fits best"
+
+#: src/client/components/StatsPanel.tsx:87
+msgid "选择 / 填空"
+msgstr "Choice / fill-in"
 
 #: src/client/components/ChatPanel.tsx:40
 #: src/client/components/ChatPanel.tsx:46
@@ -249,8 +315,8 @@ msgid "选择题"
 msgstr "Choice"
 
 #: src/client/components/StatsPanel.tsx:49
-msgid "选择题 vs 填空题"
-msgstr "Choice vs fill-in"
+#~ msgid "选择题 vs 填空题"
+#~ msgstr "Choice vs fill-in"
 
 #: src/client/hooks/use-knowledge-labels.ts:9
 msgid "逻辑词"

@@ -16,6 +16,8 @@ When responding to users in this repository, use Chinese by default.
 
 When adding a new technical decision that is hard to reverse, surprising without context, and the result of a real trade-off, create a new `docs/adr/NNNN-title.md`.
 
+Keep ADRs single-concern. When a document starts mixing unrelated decisions, split or rename it so later coding agents can identify the current source of truth.
+
 ### Tool vs Agent Boundary
 
 Agent generates all content (questions, scoring, feedback). Tools handle only: display → collect → store. Tools never call LLMs.
@@ -62,14 +64,19 @@ fitword/
 │       ├── 0003-agent-tools-design.md # Tool definitions (ask_question, record_answer, evaluate_writing, get_practice_stats)
 │       ├── 0004-pi-sdk-agent-framework.md  # pi SDK vs alternatives
 │       ├── 0005-sqlite-schema.md      # Table definitions and queries
-│       ├── 0006-system-prompt.md      # Agent prompt behavior rules
 │       ├── 0007-ui-layout.md          # Web UI layout decision
-│       └── 0008-i18n-and-bdd-e2e.md   # Lingui UI i18n + playwright-bdd e2e
+│       ├── 0008-frontend-i18n.md      # Lingui UI i18n
+│       ├── 0012-multi-session.md      # Multi-session lifecycle and API boundaries
+│       ├── 0013-pi-sdk-event-reuse.md # SSE reuses pi SDK AgentSessionEvent
+│       ├── 0014-instruction-tag.md    # <instruction> tag for scoring intent
+│       └── 0015-bdd-e2e-testing.md    # playwright-bdd e2e with Pi faux provider
 ├── e2e/                               # playwright-bdd features, steps, fixtures, page objects
 ├── src/
 │   ├── client/                        # React UI and Lingui setup
 │   ├── locales/                       # Lingui message catalogs
 │   └── server/                        # Hono server, storage, pi SDK agent tools
+├── pnpm-lock.yaml                     # pnpm dependency lockfile
+├── pnpm-workspace.yaml                # pnpm project-level settings
 ├── lingui.config.ts                   # Lingui catalog config
 └── playwright.config.ts               # playwright-bdd test config
 ```
@@ -89,33 +96,63 @@ Web UI (React) ↔ Server (local) ↔ pi SDK Agent ↔ LLM API
 - Business data: SQLite in `~/.fitword/fitword.db`
 - Tools: `ask_question`, `record_answer`, `evaluate_writing`, `get_practice_stats`
 - pi SDK built-in tools (read, bash, edit, write) disabled
+- Tests that need model behavior use Pi's official faux provider through `FITWORD_LLM_PROVIDER=faux`; do not reintroduce Fitword demo/fallback events.
 
 ## Operation Guide
 
 ### Prerequisites
 
-- Node.js >= 20.6
-- npm
+- Node.js >= 22.19.0
+- pnpm 10.34.4, managed through Corepack
+- just, when using the convenience commands in `justfile`
 
 ### Install
 
 ```bash
-npm install
+corepack enable
+corepack prepare pnpm@10.34.4 --activate
+pnpm install
 ```
 
 ### Run
 
 ```bash
-npm run dev
+pnpm run dev
+```
+
+or:
+
+```bash
+just run
 ```
 
 ### Validate
 
 ```bash
-npm run typecheck
-npm run test
-npm run test:e2e
-npm run i18n:extract
+pnpm run typecheck
+pnpm run test
+pnpm run test:e2e
+pnpm run i18n:extract
 ```
 
-`npm run test:e2e` includes an online writing-scoring BDD scenario backed by the configured model service. It is enabled only when `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `OPENAI_MODEL` are present in `.env` or the environment; otherwise it skips.
+`pnpm run test:e2e` uses `FITWORD_LLM_PROVIDER=faux` for BDD scenarios that need model behavior. The faux provider is Pi's official test provider and still exercises Pi SDK sessions, tool calls, SSE events, and jsonl persistence. Real model runs use `FITWORD_LLM_PROVIDER=openai-compatible` with `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `OPENAI_MODEL`.
+
+### Convenience Commands
+
+```bash
+just fmt
+just gen
+just check
+just test
+just e2e
+just build
+just run
+```
+
+- `just fmt`: format repository files with Prettier.
+- `just gen`: refresh Lingui catalogs and generated BDD files.
+- `just check`: run fast static checks: typecheck, Prettier check, and `git diff --check`.
+- `just test`: run unit tests.
+- `just e2e`: run Playwright BDD e2e tests.
+- `just build`: run the production Vite build.
+- `just run`: start the local dev server.

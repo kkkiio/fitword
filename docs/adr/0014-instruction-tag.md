@@ -32,7 +32,7 @@
 
 ### 不做前端过滤
 
-`readSessionMessages()` 是唯一需要感知 `<instruction>` 的地方。SSE 实时流不需要处理——`runSessionTurn` 中 emit 给前端的已经是拼接前的原始 `message`（参见 ADR 0013）。
+`readSessionMessages()` 是唯一需要感知 `<instruction>` 的地方。SSE 实时流直接透传 pi SDK 事件，不在 fitword 层改写消息（参见 ADR 0013）。
 
 ### 不换用 system prompt 追加
 
@@ -40,12 +40,12 @@
 
 ## 备选方案
 
-| 方案 | 优点 | 缺点 |
-|---|---|---|
-| 裸文本前缀（当前） | 零实现成本 | 历史消息泄漏指令 |
-| `<instruction>` tag | 简单，可过滤 | 需修改拼接和解析两处 |
-| 追加 system prompt | 不污染 user message | 影响整个 session 的后续请求 |
-| 独立 `customMessage` | 天然隔离 | pi SDK 的 `CustomAgentMessages` 需声明合并，复杂度过高 |
+| 方案                 | 优点                | 缺点                                                   |
+| -------------------- | ------------------- | ------------------------------------------------------ |
+| 裸文本前缀（当前）   | 零实现成本          | 历史消息泄漏指令                                       |
+| `<instruction>` tag  | 简单，可过滤        | 需修改拼接和解析两处                                   |
+| 追加 system prompt   | 不污染 user message | 影响整个 session 的后续请求                            |
+| 独立 `customMessage` | 天然隔离            | pi SDK 的 `CustomAgentMessages` 需声明合并，复杂度过高 |
 
 ## 后果
 

@@ -3,13 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import type {
-  KnowledgeType,
-  Quality,
-  QuestionFormat,
-  ScoreCard,
-  SessionInfo,
-} from '../shared/types.js';
+import type { KnowledgeType, Quality, QuestionFormat, ScoreCard, SessionInfo } from '../shared/types.js';
 
 export const fitwordDataDir = process.env.FITWORD_DATA_DIR?.trim() || path.join(os.homedir(), '.fitword');
 export const fitwordSessionDir = path.join(fitwordDataDir, 'sessions');

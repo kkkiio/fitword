@@ -17,7 +17,8 @@ export function ChatMessageView({
         <div className="space-y-3">
           {message.parts.map((part, index) => {
             if (part.kind === 'text') return <MessageResponse key={index}>{part.text}</MessageResponse>;
-            if (part.kind === 'question') return <QuestionCardView key={part.card.id} card={part.card} onAnswer={(answer) => onQuestionAnswer(part.card.id, answer)} />;
+            if (part.kind === 'question')
+              return <QuestionCardView key={part.card.id} card={part.card} onAnswer={(answer) => onQuestionAnswer(part.card.id, answer)} />;
             return <ScoreCardView key={part.card.scoring_record_id ?? index} card={part.card} />;
           })}
         </div>
