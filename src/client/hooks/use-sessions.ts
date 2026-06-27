@@ -27,6 +27,7 @@ export function useSessions() {
   const [input, setInput] = useState('');
   const [scoreMode, setScoreMode] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [eventStreamRetry, setEventStreamRetry] = useState(0);
   const activeAgentMessageIds = useRef<Record<string, string>>({});
 
   const selectedSession = useMemo(
@@ -189,6 +190,7 @@ export function useSessions() {
     const sessionId = selectedSessionId;
     const abortController = new AbortController();
     let alive = true;
+    let retryTimer: number | undefined;
 
     subscribeSessionEvents({
       sessionId,
@@ -216,6 +218,21 @@ export function useSessions() {
             activeAgentMessageIds.current[sessionId] = `agent-${Date.now()}-${Math.random().toString(36).slice(2)}`;
           }
           appendAgentTextDelta(sessionId, activeAgentMessageIds.current[sessionId], deltaText);
+        }
+
+        if (data.type === 'message_end') {
+          const message = data.message as
+            | { role?: string; id?: string; stopReason?: string; errorMessage?: string }
+            | undefined;
+          if (message?.role === 'assistant' && message.stopReason === 'error' && message.errorMessage) {
+            if (!activeAgentMessageIds.current[sessionId]) {
+              activeAgentMessageIds.current[sessionId] =
+                typeof message.id === 'string'
+                  ? `agent-${message.id}`
+                  : `agent-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+            }
+            appendAgentTextDelta(sessionId, activeAgentMessageIds.current[sessionId], t`模型处理失败：${message.errorMessage}`);
+          }
         }
 
         if (data.type === 'tool_execution_start' && data.toolName === 'ask_question') {
@@ -266,18 +283,26 @@ export function useSessions() {
       },
     }).catch((error) => {
       if (!alive || abortController.signal.aborted) return;
+      console.error(error);
+      delete activeAgentMessageIds.current[sessionId];
       setIsSending(false);
-      appendAgentPart(sessionId, `agent-error-${Date.now()}`, {
-        kind: 'text',
-        text: t`出错了：${error instanceof Error ? error.message : String(error)}`,
-      });
+      fetchSessionMessages(sessionId)
+        .then((messages) => {
+          if (!alive) return;
+          setMessagesBySession((current) => ({ ...current, [sessionId]: messages }));
+        })
+        .catch(() => undefined);
+      retryTimer = window.setTimeout(() => {
+        if (alive) setEventStreamRetry((current) => current + 1);
+      }, 1000);
     });
 
     return () => {
       alive = false;
+      if (retryTimer) window.clearTimeout(retryTimer);
       abortController.abort();
     };
-  }, [selectedSessionId, selectedMessagesLoaded, appendAgentPart, appendAgentTextDelta, t]);
+  }, [selectedSessionId, selectedMessagesLoaded, eventStreamRetry, appendAgentPart, appendAgentTextDelta, t]);
 
   const startEmptyConversation = useCallback(() => {
     setSelectedSessionId(undefined);

@@ -63,9 +63,8 @@ msgid "准确度"
 msgstr "准确度"
 
 #. placeholder {0}: error instanceof Error ? error.message : String(error)
-#: src/client/hooks/use-sessions.ts:272
-#: src/client/hooks/use-sessions.ts:329
-#: src/client/hooks/use-sessions.ts:378
+#: src/client/hooks/use-sessions.ts:354
+#: src/client/hooks/use-sessions.ts:403
 msgid "出错了：{0}"
 msgstr "出错了：{0}"
 
@@ -147,7 +146,7 @@ msgstr "平均总分"
 msgid "归档对话"
 msgstr "归档对话"
 
-#: src/client/hooks/use-sessions.ts:298
+#: src/client/hooks/use-sessions.ts:323
 msgid "归档这个对话？"
 msgstr "归档这个对话？"
 
@@ -212,6 +211,11 @@ msgstr "暂无答题数据，完成练习后会显示概览。"
 #: src/client/components/StatsPanel.tsx:71
 msgid "暂无题型数据。"
 msgstr "暂无题型数据。"
+
+#. placeholder {0}: message.errorMessage
+#: src/client/hooks/use-sessions.ts:234
+msgid "模型处理失败：{0}"
+msgstr "模型处理失败：{0}"
 
 #: src/client/components/Sidebar.tsx:116
 msgid "界面语言"

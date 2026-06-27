@@ -69,6 +69,10 @@ export async function subscribeSessionEvents({
       if (data) onEvent(JSON.parse(data));
     }
   }
+
+  if (!signal.aborted) {
+    throw new Error('SSE 连接已结束');
+  }
 }
 
 export async function fetchStats() {

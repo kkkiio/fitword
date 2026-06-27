@@ -41,6 +41,16 @@ pi SDK 原生事件完整覆盖 fitword 所有需求：
 
 `ready` 事件——当前前端未消费，一并删除。SSE 连接建立由 `fetch()` 返回 response 即可确认。
 
+### 错误处理边界
+
+Agent 运行中的预期内失败由 pi SDK 表达和持久化，fitword 不新增自定义 SSE 错误事件。
+
+- 模型调用失败、工具执行失败、上下文溢出重试等 Agent 语义内错误，遵循 pi SDK 的事件和消息模型。例如 assistant message 的 `stopReason: "error"` / `errorMessage`、`tool_execution_end.isError`、`agent_end` 等。
+- fitword 不发送 `event: error`，也不发送 `{ type: 'fitword_error' }` 这类自定义 payload，因为它们不会进入 pi SDK jsonl，刷新或重连后无法作为 session 事实重放。
+- `runSessionTurn` 等 fitword wrapper 抛出的预料外异常属于传输或桥接层失败，不伪装成 Agent 历史。服务端应结束当前 SSE 连接，让前端按 transport failure 处理。
+- 前端遇到 SSE transport failure 时解除发送态，并重新读取 session 历史；它不能只等待 `agent_end`，也不能追加一条看似来自 Agent 的未持久化错误消息。
+- 在没有稳定事件游标前，SSE 不使用自定义事件 ID。未来若实现 `Last-Event-ID` / replay，ID 必须对应 pi SDK session 中可重放的位置，而不是 fitword 临时内存事件。
+
 ## 备选方案
 
 | 方案 | 优点 | 缺点 |
@@ -48,6 +58,7 @@ pi SDK 原生事件完整覆盖 fitword 所有需求：
 | 当前：自定义 SSE 事件 | 前端不依赖 pi SDK 类型 | 两套事件语言，工具内部手动 emit |
 | 透传 pi SDK 事件 | 零自定义事件，服务端桥接极薄 | 前端需依赖 pi SDK 类型定义，耦合度略增 |
 | 部分透传 + 部分自定义 | 过渡平滑 | 仍是两套体系 |
+| 透传 pi SDK 事件 + 自定义错误事件 | 前端能收到结构化错误 | 错误事件不在 pi SDK jsonl 中，破坏 session 事实来源 |
 
 选透传。fitword 已经深度依赖 pi SDK（agent session、工具系统、session 管理），前端依赖其事件类型并不增加实质性耦合，却消除了事件翻译层。
 
@@ -58,3 +69,4 @@ pi SDK 原生事件完整覆盖 fitword 所有需求：
 - `pi-agent.ts` 中删除 `streamFallback` 及其依赖函数，删除 `createFitwordTools` 中的 `state.emit()` 调用
 - `readSessionMessages()` 不变（历史消息回放是独立路径）
 - e2e 测试不再依赖 `FITWORD_FORCE_DEMO=1`；需要 LLM 的场景按模型配置决定是否启用
+- wrapper 级异常通过 SSE transport failure 表达，前端负责解锁 UI 并重新拉取历史

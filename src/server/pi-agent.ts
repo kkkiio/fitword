@@ -37,6 +37,11 @@ export type StreamEmit = (data: Record<string, unknown>) => void;
 
 type PiSession = Awaited<ReturnType<typeof createAgentSession>>['session'];
 
+interface SessionEventSubscriber {
+  emit: StreamEmit;
+  reject: (error: Error) => void;
+}
+
 interface PendingQuestion {
   card: QuestionCard;
   resolve: (value: { user_answer: string; quality?: Quality }) => void;
@@ -48,8 +53,9 @@ interface ManagedPiSession {
   queue: Promise<void>;
   lastUsed: number;
   isRunning: boolean;
-  subscribers: Set<StreamEmit>;
+  subscribers: Set<SessionEventSubscriber>;
   eventBuffer: Record<string, unknown>[];
+  transportError?: Error;
   session?: PiSession;
   sessionPromise?: Promise<PiSession>;
   unsubscribe?: () => void;
@@ -417,8 +423,8 @@ async function getPiSession(state: ManagedPiSession) {
       if (state.eventBuffer.length > maxBufferedEvents) {
         state.eventBuffer.splice(0, state.eventBuffer.length - maxBufferedEvents);
       }
-      for (const emit of state.subscribers) {
-        emit(payload);
+      for (const subscriber of state.subscribers) {
+        subscriber.emit(payload);
       }
     });
   }
@@ -453,6 +459,7 @@ async function runSessionTurn(
 
   state.isRunning = true;
   state.eventBuffer = [];
+  state.transportError = undefined;
   state.lastUsed = Date.now();
 
   try {
@@ -501,7 +508,14 @@ export function createSessionAndSendMessage(input: { message: string; intent?: '
   const previous = state.queue.catch(() => undefined);
   const run = previous.then(() => runSessionTurn(session, text, input.intent));
   state.queue = run.catch((error) => {
-    console.error(error);
+    const failure = error instanceof Error ? error : new Error(String(error));
+    state.transportError = failure;
+    state.session = undefined;
+    state.sessionPromise = undefined;
+    for (const subscriber of state.subscribers) {
+      subscriber.reject(failure);
+    }
+    console.error(failure);
   });
 
   return session;
@@ -525,7 +539,14 @@ export function sendSessionMessage(input: { sessionId: string; message: string; 
   const previous = state.queue.catch(() => undefined);
   const run = previous.then(() => runSessionTurn(session, text, input.intent));
   state.queue = run.catch((error) => {
-    console.error(error);
+    const failure = error instanceof Error ? error : new Error(String(error));
+    state.transportError = failure;
+    state.session = undefined;
+    state.sessionPromise = undefined;
+    for (const subscriber of state.subscribers) {
+      subscriber.reject(failure);
+    }
+    console.error(failure);
   });
 
   return {
@@ -548,28 +569,42 @@ export async function subscribeSessionEvents(sessionId: string, emit: StreamEmit
     emit(event);
   }
 
+  if (state.transportError && !state.isRunning) {
+    const error = state.transportError;
+    state.transportError = undefined;
+    state.eventBuffer = [];
+    throw error;
+  }
+
   if (!state.isRunning && !state.pendingQuestion) {
     state.eventBuffer = [];
   }
 
-  state.subscribers.add(emit);
+  await new Promise<void>((resolve, reject) => {
+    const subscriber: SessionEventSubscriber = {
+      emit,
+      reject(error) {
+        signal?.removeEventListener('abort', onAbort);
+        state.subscribers.delete(subscriber);
+        state.lastUsed = Date.now();
+        reject(error);
+      },
+    };
 
-  if (signal?.aborted) {
-    state.subscribers.delete(emit);
-    return;
-  }
-
-  await new Promise<void>((resolve) => {
     const onAbort = () => {
       signal?.removeEventListener('abort', onAbort);
+      state.subscribers.delete(subscriber);
+      state.lastUsed = Date.now();
       resolve();
     };
 
     signal?.addEventListener('abort', onAbort, { once: true });
-  });
+    state.subscribers.add(subscriber);
 
-  state.subscribers.delete(emit);
-  state.lastUsed = Date.now();
+    if (signal?.aborted) {
+      onAbort();
+    }
+  });
 }
 
 export function resolveQuestionAnswer(sessionId: string, questionId: string, answer: string) {
@@ -678,6 +713,9 @@ export function readSessionMessages(sessionId: string) {
         .map((block: any) => block.text)
         .join('');
       if (text) parts.push({ kind: 'text', text });
+      if (sourceMessage.stopReason === 'error' && typeof sourceMessage.errorMessage === 'string') {
+        parts.push({ kind: 'text', text: `模型处理失败：${sourceMessage.errorMessage}` });
+      }
       if (parts.length) {
         messages.push({ id: entry.id ?? randomUUID(), role: 'agent', created_at: createdAt, parts });
       }

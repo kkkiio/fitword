@@ -32,7 +32,7 @@
 
 ### 不做前端过滤
 
-`readSessionMessages()` 是唯一需要感知 `<instruction>` 的地方。SSE 实时流不需要处理——`runSessionTurn` 中 emit 给前端的已经是拼接前的原始 `message`（参见 ADR 0013）。
+`readSessionMessages()` 是唯一需要感知 `<instruction>` 的地方。SSE 实时流直接透传 pi SDK 事件，不在 fitword 层改写消息（参见 ADR 0013）。
 
 ### 不换用 system prompt 追加
 
