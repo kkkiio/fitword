@@ -5,7 +5,7 @@ import path from 'node:path';
 
 import type { Page, TestInfo } from '@playwright/test';
 
-export type FitwordE2eMode = 'demo' | 'real-llm';
+export type FitwordE2eMode = 'local' | 'real-llm';
 
 export function missingRealLlmConfig(): string[] {
   return ['OPENAI_API_KEY', 'OPENAI_BASE_URL', 'OPENAI_MODEL'].filter((name) => !process.env[name]?.trim());
@@ -29,7 +29,7 @@ export class FitwordE2eApp {
   }
 
   async start(options: { mode?: FitwordE2eMode } = {}): Promise<void> {
-    const mode = options.mode ?? 'demo';
+    const mode = options.mode ?? 'local';
     if (this.startPromise) {
       if (this.mode !== mode) {
         throw new Error(`Fitword e2e app already started in ${this.mode} mode; cannot switch to ${mode}.`);
@@ -67,8 +67,7 @@ export class FitwordE2eApp {
         PORT: String(port),
         FITWORD_DATA_DIR: this.scenarioRoot,
         FITWORD_DB: this.dbPath,
-        FITWORD_FORCE_DEMO: mode === 'demo' ? '1' : '0',
-        ...(mode === 'demo' ? { OPENAI_API_KEY: '', OPENAI_BASE_URL: '', OPENAI_MODEL: '' } : {}),
+        ...(mode === 'local' ? { OPENAI_API_KEY: '', OPENAI_BASE_URL: '', OPENAI_MODEL: '' } : {}),
       };
       const child = spawn(process.execPath, [path.resolve(process.cwd(), 'node_modules/tsx/dist/cli.mjs'), 'src/server/index.ts'], {
         cwd: process.cwd(),

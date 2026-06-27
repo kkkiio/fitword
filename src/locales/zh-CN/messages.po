@@ -259,3 +259,77 @@ msgstr "逻辑词"
 #: src/client/hooks/use-knowledge-labels.ts:10
 msgid "领域词"
 msgstr "领域词"
+
+#: src/client/components/StatsPanel.tsx
+msgid "轻量概览本地练习记录，帮助你判断是否需要继续练习。"
+msgstr "轻量概览本地练习记录，帮助你判断是否需要继续练习。"
+
+
+#: src/client/components/StatsPanel.tsx
+msgid "答题概览"
+msgstr "答题概览"
+
+
+#: src/client/components/StatsPanel.tsx
+msgid "答题数量与整体优质率。"
+msgstr "答题数量与整体优质率。"
+
+
+#: src/client/components/StatsPanel.tsx
+msgid "暂无答题数据，完成练习后会显示概览。"
+msgstr "暂无答题数据，完成练习后会显示概览。"
+
+
+#: src/client/components/StatsPanel.tsx
+msgid "选择 / 填空"
+msgstr "选择 / 填空"
+
+
+#: src/client/components/StatsPanel.tsx
+msgid "按题型展示题数和优质率。"
+msgstr "按题型展示题数和优质率。"
+
+
+#: src/client/components/StatsPanel.tsx
+msgid "暂无题型数据。"
+msgstr "暂无题型数据。"
+
+
+#: src/client/components/StatsPanel.tsx
+msgid "{0} 题"
+msgstr "{0} 题"
+
+
+#: src/client/components/StatsPanel.tsx
+msgid "展示五维平均分。"
+msgstr "展示五维平均分。"
+
+
+#: src/client/components/StatsPanel.tsx
+msgid "暂无写作评分数据，完成评分后会显示五维平均分。"
+msgstr "暂无写作评分数据，完成评分后会显示五维平均分。"
+
+
+#: src/client/components/StatsPanel.tsx
+msgid "评分次数"
+msgstr "评分次数"
+
+
+#: src/client/components/StatsPanel.tsx
+msgid "平均总分"
+msgstr "平均总分"
+
+
+#: src/client/components/StatsPanel.tsx
+msgid "准确"
+msgstr "准确"
+
+
+#: src/client/components/StatsPanel.tsx
+msgid "具体"
+msgstr "具体"
+
+
+#: src/client/components/StatsPanel.tsx
+msgid "自然"
+msgstr "自然"

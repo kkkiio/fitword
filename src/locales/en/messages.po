@@ -259,3 +259,77 @@ msgstr "Logic words"
 #: src/client/hooks/use-knowledge-labels.ts:10
 msgid "领域词"
 msgstr "Domain words"
+
+#: src/client/components/StatsPanel.tsx
+msgid "轻量概览本地练习记录，帮助你判断是否需要继续练习。"
+msgstr "Light overview of local practice records to help you decide whether to keep practicing."
+
+
+#: src/client/components/StatsPanel.tsx
+msgid "答题概览"
+msgstr "Answer overview"
+
+
+#: src/client/components/StatsPanel.tsx
+msgid "答题数量与整体优质率。"
+msgstr "Question count and overall good rate."
+
+
+#: src/client/components/StatsPanel.tsx
+msgid "暂无答题数据，完成练习后会显示概览。"
+msgstr "No answer data yet. Complete practice to see the overview."
+
+
+#: src/client/components/StatsPanel.tsx
+msgid "选择 / 填空"
+msgstr "Choice / fill-in"
+
+
+#: src/client/components/StatsPanel.tsx
+msgid "按题型展示题数和优质率。"
+msgstr "Show question count and good rate by format."
+
+
+#: src/client/components/StatsPanel.tsx
+msgid "暂无题型数据。"
+msgstr "No format data yet."
+
+
+#: src/client/components/StatsPanel.tsx
+msgid "{0} 题"
+msgstr "{0} questions"
+
+
+#: src/client/components/StatsPanel.tsx
+msgid "展示五维平均分。"
+msgstr "Show five-dimension average scores."
+
+
+#: src/client/components/StatsPanel.tsx
+msgid "暂无写作评分数据，完成评分后会显示五维平均分。"
+msgstr "No writing score data yet. Complete scoring to see five-dimension averages."
+
+
+#: src/client/components/StatsPanel.tsx
+msgid "评分次数"
+msgstr "Scoring count"
+
+
+#: src/client/components/StatsPanel.tsx
+msgid "平均总分"
+msgstr "Average total score"
+
+
+#: src/client/components/StatsPanel.tsx
+msgid "准确"
+msgstr "Accuracy"
+
+
+#: src/client/components/StatsPanel.tsx
+msgid "具体"
+msgstr "Specificity"
+
+
+#: src/client/components/StatsPanel.tsx
+msgid "自然"
+msgstr "Naturalness"

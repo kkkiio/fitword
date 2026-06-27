@@ -1,17 +1,19 @@
 import type { ChatMessage, SessionInfo } from '../shared/types.js';
 
-export type ChatEventHandler = (event: string, data: Record<string, unknown>) => void;
+export type ChatEventHandler = (data: Record<string, unknown>) => void;
 
 export async function streamChatEvents({
   message,
   intent,
   sessionId,
   onEvent,
+  onSessionId,
 }: {
   message: string;
   intent?: 'score';
   sessionId?: string;
   onEvent: ChatEventHandler;
+  onSessionId?: (sessionId: string) => void;
 }) {
   const response = await fetch('/api/chat/stream', {
     method: 'POST',
@@ -19,6 +21,8 @@ export async function streamChatEvents({
     body: JSON.stringify({ message, intent, sessionId }),
   });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const responseSessionId = response.headers.get('x-fitword-session-id');
+  if (responseSessionId) onSessionId?.(responseSessionId);
   if (!response.body) throw new Error('当前浏览器不支持流式响应');
 
   const reader = response.body.getReader();
@@ -32,9 +36,8 @@ export async function streamChatEvents({
     const chunks = buffer.split('\n\n');
     buffer = chunks.pop() ?? '';
     for (const chunk of chunks) {
-      const event = chunk.match(/^event: (.+)$/m)?.[1];
       const data = chunk.match(/^data: (.+)$/m)?.[1];
-      if (event && data) onEvent(event, JSON.parse(data));
+      if (data) onEvent(JSON.parse(data));
     }
   }
 }

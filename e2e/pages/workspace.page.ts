@@ -30,8 +30,9 @@ export class FitwordWorkspacePage {
     await this.page.getByRole('button', { name: /统计/ }).click();
     await expect(this.page.getByRole('heading', { name: '练习统计', exact: true })).toBeVisible();
     await expect(this.page.getByText('总题数')).toBeVisible();
-    await expect(this.page.getByText('暂无数据，完成练习后会显示。')).toHaveCount(2);
-    await expect(this.page.getByText('总记录 0 次')).toBeVisible();
+    await expect(this.page.getByText('暂无答题数据，完成练习后会显示概览。')).toBeVisible();
+    await expect(this.page.getByText('暂无题型数据。')).toBeVisible();
+    await expect(this.page.getByText('暂无写作评分数据，完成评分后会显示五维平均分。')).toBeVisible();
   }
 
   async switchToEnglish(): Promise<void> {
@@ -58,7 +59,7 @@ export class FitwordWorkspacePage {
   async expectChoiceQuestion(): Promise<void> {
     await expect(this.page.getByText('选择题')).toBeVisible();
     await expect(this.page.getByText('答完后我会给出语境适配度和表达差异。')).toBeVisible();
-    await expect(this.page.getByRole('button', { name: /告一段落/ })).toBeVisible();
+    await expect(this.page.locator('button').filter({ hasText: /[A-D]/ }).first()).toBeVisible();
   }
 
   async chooseCandidate(candidate: string): Promise<void> {

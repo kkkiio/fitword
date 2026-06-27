@@ -192,38 +192,29 @@ export function useSessions() {
           message: text,
           intent: outgoingIntent,
           sessionId: outgoingSessionId,
-          onEvent(event, data) {
-            if (event === 'session') {
-              const session = data.session as SessionInfo;
-              targetSessionId = session.id;
-              setSelectedSessionId(session.id);
-              setSessions((current) => {
-                const existing = current.some((s) => s.id === session.id);
-                const next = existing
-                  ? current.map((s) => (s.id === session.id ? session : s))
-                  : [session, ...current];
-                return sortByUpdated(next);
-              });
-              setMessagesBySession((current) =>
-                current[session.id] ? current : { ...current, [session.id]: [] },
-              );
-            }
-
+          onSessionId(sessionId) {
+            targetSessionId = sessionId;
+            setSelectedSessionId(sessionId);
+            const now = new Date().toISOString();
+            const userMessage: ChatMessage = {
+              id: `user-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+              role: 'user',
+              created_at: now,
+              parts: [{ kind: 'text', text }],
+            };
+            setMessagesBySession((current) => {
+              const messages = current[sessionId] ?? [];
+              return { ...current, [sessionId]: [...messages, userMessage] };
+            });
+            fetchSessions().then((loadedSessions) => setSessions(sortByUpdated(loadedSessions))).catch(() => undefined);
+          },
+          onEvent(data) {
             if (!targetSessionId) return;
 
-            if (event === 'message') {
-              const incoming = data.message as ChatMessage;
-              setMessagesBySession((current) => {
-                const messages = current[targetSessionId!] ?? [];
-                const nextMessages = messages.some((m) => m.id === incoming.id)
-                  ? messages.map((m) => (m.id === incoming.id ? incoming : m))
-                  : [...messages, incoming];
-                return { ...current, [targetSessionId!]: nextMessages };
-              });
-            }
-
-            if (event === 'delta') {
-              const deltaText = String(data.text ?? '');
+            if (data.type === 'message_update') {
+              const assistantEvent = data.assistantMessageEvent as { type?: string; delta?: string } | undefined;
+              if (assistantEvent?.type !== 'text_delta') return;
+              const deltaText = String(assistantEvent.delta ?? '');
               assistantStarted = true;
               setMessagesBySession((current) => {
                 const now = new Date().toISOString();
@@ -254,35 +245,19 @@ export function useSessions() {
               });
             }
 
-            if (event === 'tool') {
-              if (data.kind === 'question') {
+            if (data.type === 'tool_execution_end') {
+              const details = (data.details ?? (data.result as { details?: unknown } | undefined)?.details) as
+                | { card?: QuestionCard | ScoreCard }
+                | undefined;
+              const card = details?.card;
+              if (card?.type === 'question') {
                 assistantStarted = true;
-                appendAgentPart(targetSessionId, assistantId, {
-                  kind: 'question',
-                  card: data.card as QuestionCard,
-                });
+                appendAgentPart(targetSessionId, assistantId, { kind: 'question', card });
               }
-              if (data.kind === 'score') {
+              if (card?.type === 'score') {
                 assistantStarted = true;
-                appendAgentPart(targetSessionId, assistantId, {
-                  kind: 'score',
-                  card: data.card as ScoreCard,
-                });
+                appendAgentPart(targetSessionId, assistantId, { kind: 'score', card });
               }
-            }
-
-            if (event === 'warning' && !assistantStarted) {
-              appendAgentPart(targetSessionId, assistantId, {
-                kind: 'text',
-                text: String(data.message ?? ''),
-              });
-            }
-
-            if (event === 'error') {
-              appendAgentPart(targetSessionId, assistantId, {
-                kind: 'text',
-                text: t`出错了：${String(data.message ?? '未知错误')}`,
-              });
             }
           },
         });

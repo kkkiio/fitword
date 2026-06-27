@@ -5,6 +5,13 @@ Given('我从一个空白的练习工作台开始', async ({ fitword }) => {
   await fitword.start();
 });
 
+Given('表达教练可以提供模型能力', async ({ fitword }) => {
+  const missing = missingRealLlmConfig();
+  test.skip(missing.length > 0, `.env 或环境变量缺少模型配置：${missing.join(', ')}`);
+  test.setTimeout(120_000);
+  await fitword.start({ mode: 'real-llm' });
+});
+
 Given('表达教练可以提供在线评分', async ({ fitword }) => {
   const missing = missingRealLlmConfig();
   test.skip(missing.length > 0, `.env 或环境变量缺少在线评分配置：${missing.join(', ')}`);

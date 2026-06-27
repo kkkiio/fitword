@@ -60,13 +60,21 @@ app.post('/api/chat/stream', async (context) => {
     return context.json({ error: '消息不能为空。' }, 400);
   }
 
-  const { streamChat } = await import('./pi-agent.js');
-  return new Response(createSseStream((emit, signal) => streamChat({ sessionId, message, intent }, emit, signal), context.req.raw.signal), {
+  const { prepareChatSession, streamChat } = await import('./pi-agent.js');
+  let session;
+  try {
+    session = prepareChatSession({ sessionId, message });
+  } catch (error) {
+    return context.json({ error: error instanceof Error ? error.message : String(error) }, 400);
+  }
+
+  return new Response(createSseStream((emit, signal) => streamChat({ sessionId: session.id, message, intent }, emit, signal), context.req.raw.signal), {
     headers: {
       'content-type': 'text/event-stream; charset=utf-8',
       'cache-control': 'no-cache, no-transform',
       connection: 'keep-alive',
       'x-accel-buffering': 'no',
+      'x-fitword-session-id': session.id,
     },
   });
 });
