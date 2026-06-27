@@ -227,7 +227,7 @@ function createFitwordTools(state: ManagedPiSession) {
   const askQuestionTool = defineTool({
     name: 'ask_question',
     label: 'Ask Question',
-    description: '展示一道 fitword 选择题或填空题，等待用户作答后返回答案。工具不写入存储。',
+    description: '展示一道 fitword 选择题或填空题，等待用户作答后返回答案。选择题会机械判定并写入存储；填空题只返回答案。',
     parameters: Type.Object({
       format: Type.Union([Type.Literal('choice'), Type.Literal('fill')]),
       question: Type.String(),
@@ -259,10 +259,27 @@ function createFitwordTools(state: ManagedPiSession) {
       }
 
       const result = await waitForQuestionAnswer(state, card, signal);
+      let recorded: ReturnType<typeof recordAnswer> | undefined;
+      if (card.format === 'choice') {
+        const quality = result.quality;
+        if (quality !== 0 && quality !== 2) {
+          throw new Error('选择题必须返回 0 或 2 两档质量。');
+        }
+        recorded = recordAnswer({
+          format: card.format,
+          question: card.question,
+          knowledge_type: card.knowledge_type,
+          topic_tag: card.topic_tag,
+          user_answer: result.user_answer,
+          quality,
+          candidates: card.candidates,
+          correct: card.correct,
+        });
+      }
 
       return {
         content: [{ type: 'text', text: JSON.stringify(result) }],
-        details: { card, result },
+        details: { card, result, recorded },
       };
     },
   });
@@ -270,9 +287,9 @@ function createFitwordTools(state: ManagedPiSession) {
   const recordAnswerTool = defineTool({
     name: 'record_answer',
     label: 'Record Answer',
-    description: '写入已完成作答的题目和答案质量。',
+    description: '写入已完成作答的填空题和 Agent 判断出的答案质量。',
     parameters: Type.Object({
-      format: Type.Union([Type.Literal('choice'), Type.Literal('fill')]),
+      format: Type.Literal('fill'),
       question: Type.String(),
       knowledge_type: Type.Union([
         Type.Literal('noun'),
@@ -284,14 +301,8 @@ function createFitwordTools(state: ManagedPiSession) {
       topic_tag: Type.Optional(Type.String()),
       user_answer: Type.String(),
       quality: Type.Union([Type.Literal(0), Type.Literal(1), Type.Literal(2)]),
-      candidates: Type.Optional(Type.Array(Type.String())),
-      correct: Type.Optional(Type.String()),
     }),
     execute: async (_toolCallId, params) => {
-      if (params.format === 'choice' && params.quality === 1) {
-        throw new Error('选择题只能记录 0 或 2 两档质量。');
-      }
-
       const result = recordAnswer({
         format: params.format,
         question: params.question,
@@ -299,8 +310,6 @@ function createFitwordTools(state: ManagedPiSession) {
         topic_tag: params.topic_tag,
         user_answer: params.user_answer,
         quality: params.quality,
-        candidates: params.candidates,
-        correct: params.correct,
       });
 
       return { content: [{ type: 'text', text: JSON.stringify(result) }], details: result };
@@ -445,34 +454,40 @@ function setFauxResponsesForTurn(message: string, intent: 'score' | undefined) {
         correct: '识别',
       } as const);
 
-  provider.setResponses([
+  const responses = [
     fauxAssistantMessage([fauxToolCall('ask_question', question)], { stopReason: 'toolUse' }),
-    (context) => {
+    (context: any) => {
       const toolResult = [...context.messages]
         .reverse()
         .find((candidate) => candidate.role === 'toolResult' && candidate.toolName === 'ask_question');
       const textBlock = Array.isArray(toolResult?.content)
-        ? toolResult.content.find((block) => block.type === 'text' && typeof block.text === 'string')
+        ? toolResult.content.find((block: any) => block.type === 'text' && typeof block.text === 'string')
         : undefined;
       const parsed = textBlock?.type === 'text' ? JSON.parse(textBlock.text) : {};
       const userAnswer = typeof parsed.user_answer === 'string' ? parsed.user_answer : '';
+
+      if (question.format === 'choice') {
+        return fauxAssistantMessage([fauxText('这道题考察项目汇报中更准确的动作动词。')]);
+      }
+
       return fauxAssistantMessage(
         [
           fauxToolCall('record_answer', {
             ...question,
             user_answer: userAnswer,
-            quality: question.format === 'choice' ? (parsed.quality === 2 ? 2 : 0) : userAnswer.includes('统筹') ? 2 : userAnswer ? 1 : 0,
+            quality: userAnswer.includes('统筹') ? 2 : userAnswer ? 1 : 0,
           }),
         ],
         { stopReason: 'toolUse' },
       );
     },
-    fauxAssistantMessage([
-      fauxText(
-        wantsFillQuestion ? '“统筹”能表达主动协调多个团队的动作，比泛泛地说“处理进度”更具体。' : '这道题考察项目汇报中更准确的动作动词。',
-      ),
-    ]),
-  ]);
+  ];
+
+  if (wantsFillQuestion) {
+    responses.push(fauxAssistantMessage([fauxText('“统筹”能表达主动协调多个团队的动作，比泛泛地说“处理进度”更具体。')]));
+  }
+
+  provider.setResponses(responses);
 }
 
 async function createFitwordPiSession(state: ManagedPiSession) {

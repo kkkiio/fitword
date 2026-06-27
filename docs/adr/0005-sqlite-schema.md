@@ -143,7 +143,7 @@ SELECT * FROM sessions WHERE status = 'active' ORDER BY updated_at DESC;
 ## 后果
 
 - questions、answers、scoring_records 三表覆盖 v0.1 练习场景
-- questions 只保存已完成作答的题目；questions 和 answers 的写入由 `record_answer` 工具在同一事务中完成
+- questions 只保存已完成作答的题目；选择题由 `ask_question` 在机械判定后写入，填空题由 `record_answer` 在 Agent 判断质量后写入；questions 和 answers 的写入在同一事务中完成
 - answers 使用三档 `quality` 记录答题质量，选择题只写入 `0` 或 `2`，填空题可写入 `0`、`1`、`2`
 - scoring_records 的写入由 `evaluate_writing` 工具完成
 - `get_practice_stats` 工具从上述查询中获取 Agent Memory 数据，其中待打磨率表示未达到好答案的比例
